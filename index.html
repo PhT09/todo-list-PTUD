@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Todo List</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="background-shapes">
+        <div class="shape shape-1"></div>
+        <div class="shape shape-2"></div>
+        <div class="shape shape-3"></div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>My Tasks</h1>
+            <p>Hôm nay bạn cần làm gì?</p>
+        </header>
+
+        <div class="input-group">
+            <input type="text" id="todo-input" placeholder="Thêm công việc mới...">
+            <button id="add-btn">
+                <i class="fa-solid fa-plus"></i>
+            </button>
+        </div>
+
+        <ul id="todo-list" class="todo-list">
+            <!-- Todo items will be added here dynamically -->
+            <!-- Example Item for structure visualization -->
+            <!-- 
+            <li class="todo-item">
+                <span class="todo-text">Hoàn thành bài tập về nhà</span>
+                <div class="actions">
+                    <button class="check-btn"><i class="fa-solid fa-check"></i></button>
+                    <button class="delete-btn"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </li> 
+            -->
+        </ul>
+        
+        <div class="status-bar">
+            <span id="items-left">0 công việc còn lại</span>
+            <button id="clear-completed">Xóa đã xong</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

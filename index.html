@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,6 +13,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div class="background-shapes">
         <div class="shape shape-1"></div>
@@ -32,20 +34,31 @@
             </button>
         </div>
 
+        <!-- New: Search & Filter Toolbar -->
+        <div class="actions-bar">
+            <input type="text" id="search-input" placeholder="Tìm kiếm công việc...">
+            <div class="filter-tabs">
+                <button class="filter-btn active" data-filter="all">Tất cả</button>
+                <button class="filter-btn" data-filter="active">Đang làm</button>
+                <button class="filter-btn" data-filter="completed">Đã xong</button>
+            </div>
+            <select id="sort-order">
+                <option value="desc">Mới nhất</option>
+                <option value="asc">Cũ nhất</option>
+            </select>
+        </div>
+
         <ul id="todo-list" class="todo-list">
             <!-- Todo items will be added here dynamically -->
-            <!-- Example Item for structure visualization -->
-            <!-- 
-            <li class="todo-item">
-                <span class="todo-text">Hoàn thành bài tập về nhà</span>
-                <div class="actions">
-                    <button class="check-btn"><i class="fa-solid fa-check"></i></button>
-                    <button class="delete-btn"><i class="fa-solid fa-trash"></i></button>
-                </div>
-            </li> 
-            -->
         </ul>
-        
+
+        <!-- New: Pagination Controls -->
+        <div class="pagination-bar">
+            <button id="prev-btn" disabled>Trước</button>
+            <span id="page-info">Trang 1</span>
+            <button id="next-btn" disabled>Sau</button>
+        </div>
+
         <div class="status-bar">
             <span id="items-left">0 công việc còn lại</span>
             <button id="clear-completed">Xóa đã xong</button>
@@ -54,4 +67,5 @@
 
     <script src="script.js"></script>
 </body>
+
 </html>

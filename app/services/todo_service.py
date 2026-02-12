@@ -1,10 +1,9 @@
-from typing import Optional, List
-from fastapi import HTTPException, Depends
-from ..schemas.todo import TodoCreate, Todo, PaginatedResponse
+from typing import Optional, List, Union
+from fastapi import HTTPException
+from ..schemas.todo import TodoCreate, TodoUpdate, Todo, PaginatedResponse
 from ..repositories.todo_repository import TodoRepository, get_todo_repo
 
 class TodoService:
-
     def __init__(self, repo: TodoRepository):
         self.repo = repo
 
@@ -39,8 +38,8 @@ class TodoService:
             raise HTTPException(status_code=404, detail="Todo not found")
         return todo
 
-    def update_todo(self, todo_id: int, todo_data: TodoCreate) -> Todo:
-        updated_todo = self.repo.update(todo_id, todo_data)
+    def update_todo(self, todo_id: int, todo_update: Union[TodoCreate, TodoUpdate]) -> Todo:
+        updated_todo = self.repo.update(todo_id, todo_update)
         if not updated_todo:
             raise HTTPException(status_code=404, detail="Todo not found")
         return updated_todo
@@ -51,6 +50,12 @@ class TodoService:
             raise HTTPException(status_code=404, detail="Todo not found")
         return {"message": "Todo deleted successfully"}
 
+    def complete_todo(self, todo_id: int) -> Todo:
+        # Specialized action: Mark as done
+        update_data = TodoUpdate(is_done=True)
+        return self.update_todo(todo_id, update_data)
+
 # Dependency Injection Helper
+from fastapi import Depends
 def get_todo_service(repo: TodoRepository = Depends(get_todo_repo)) -> TodoService:
     return TodoService(repo)

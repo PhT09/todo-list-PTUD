@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, Path, HTTPException
-from typing import Optional
-from ..schemas.todo import TodoCreate, Todo, PaginatedResponse
+from typing import Optional, Union
+from ..schemas.todo import TodoCreate, TodoUpdate, Todo, PaginatedResponse
 from ..services.todo_service import TodoService, get_todo_service
 
 router = APIRouter()
@@ -14,14 +14,7 @@ def read_todos(
     sort_desc: bool = True,
     service: TodoService = Depends(get_todo_service)
 ):
-    return service.get_todos(skip, limit, q, is_done, sort_desc).model_dump()
-    # model_dump() trả về dict, PaginatedResponse cũng là model.
-    # Service trả về object PaginatedResponse.
-    # FastAPI có thể pass object Pydantic trực tiếp.
-    # Nhưng service trong code trước trả về PaginatedResponse(...).
-    # Tôi sẽ sửa lại service return tuple hoặc router wrap.
-    # Service Step 256: `return PaginatedResponse(...)`.
-    # OK.
+    return service.get_todos(skip, limit, q, is_done, sort_desc)
 
 @router.post("/todos", response_model=Todo, status_code=201)
 def create_todo(
@@ -40,10 +33,25 @@ def read_todo(
 @router.put("/todos/{todo_id}", response_model=Todo)
 def update_todo(
     todo_id: int,
-    todo: TodoCreate,
+    todo: TodoCreate, # PUT replaces resource, so require all fields usually. But TodoCreate fits.
     service: TodoService = Depends(get_todo_service)
 ):
     return service.update_todo(todo_id, todo)
+
+@router.patch("/todos/{todo_id}", response_model=Todo)
+def patch_todo(
+    todo_id: int,
+    todo: TodoUpdate, # PATCH updates partially, all fields optional
+    service: TodoService = Depends(get_todo_service)
+):
+    return service.update_todo(todo_id, todo)
+
+@router.post("/todos/{todo_id}/complete", response_model=Todo)
+def complete_todo(
+    todo_id: int,
+    service: TodoService = Depends(get_todo_service)
+):
+    return service.complete_todo(todo_id)
 
 @router.delete("/todos/{todo_id}")
 def delete_todo(

@@ -1,11 +1,16 @@
-from datetime import datetime
 from typing import List, Optional
-from ..schemas.todo import Todo, TodoCreate
+from sqlalchemy.orm import Session
+from sqlalchemy import desc
+from fastapi import Depends
 
-# In-memory database
-todos_db: List[Todo] = []
+from ..models.todo import Todo
+from ..schemas.todo import TodoCreate, TodoUpdate
+from ..core.database import get_db
 
 class TodoRepository:
+    def __init__(self, db: Session):
+        self.db = db
+
     def get_all(
         self,
         skip: int = 0,
@@ -14,68 +19,68 @@ class TodoRepository:
         is_done: Optional[bool] = None,
         sort_desc: bool = True
     ) -> tuple[List[Todo], int]:
-        """
-        Lấy danh sách Todos với bộ lọc, tìm kiếm, sắp xếp và phân trang.
-        Trả về (list_items, total_count).
-        """
-        filtered_items = todos_db
+        
+        query = self.db.query(Todo)
 
-        # 1. Filter by status
         if is_done is not None:
-            filtered_items = [t for t in filtered_items if t.is_done == is_done]
-
-        # 2. Search by title
+            query = query.filter(Todo.is_done == is_done)
+        
         if q:
-            q_lower = q.lower()
-            filtered_items = [t for t in filtered_items if q_lower in t.title.lower()]
+            # SQLite ilike support via like in older versions, but ilike is generally supported via SQLAlchemy dialect
+            # For pure SQLite, we can use like for case-insensitive if configured, but let's assume simple like or func.lower
+            # SQLAlchemy ilike compiles to `lower(a) LIKE lower(b)` usually.
+            query = query.filter(Todo.title.ilike(f"%{q}%"))
 
-        # 3. Calculate Total Count
-        total = len(filtered_items)
+        # Sort
+        if sort_desc:
+            query = query.order_by(desc(Todo.created_at))
+        else:
+            query = query.order_by(Todo.created_at)
 
-        # 4. Sort
-        filtered_items.sort(
-            key=lambda x: x.created_at, 
-            reverse=sort_desc
-        )
+        total = query.count()
+        
+        # Paginate (DB Level)
+        items = query.offset(skip).limit(limit).all()
 
-        # 5. Pagination
-        paginated_items = filtered_items[skip : skip + limit]
-
-        return paginated_items, total
+        return items, total
 
     def get_by_id(self, todo_id: int) -> Optional[Todo]:
-        for todo in todos_db:
-            if todo.id == todo_id:
-                return todo
-        return None
+        return self.db.query(Todo).filter(Todo.id == todo_id).first()
 
     def create(self, todo_data: TodoCreate) -> Todo:
-        new_id = len(todos_db) + 1 if not todos_db else max(t.id for t in todos_db) + 1
         new_todo = Todo(
-            id=new_id, 
-            title=todo_data.title, 
-            is_done=todo_data.is_done,
-            created_at=datetime.now()
+            title=todo_data.title,
+            description=todo_data.description,
+            is_done=todo_data.is_done
         )
-        todos_db.insert(0, new_todo) # Mặc định thêm vào đầu nếu sort desc
+        self.db.add(new_todo)
+        self.db.commit()
+        self.db.refresh(new_todo)
         return new_todo
 
-    def update(self, todo_id: int, todo_data: TodoCreate) -> Optional[Todo]:
-        for index, todo in enumerate(todos_db):
-            if todo.id == todo_id:
-                updated_todo = todo.model_copy(update=todo_data.model_dump())
-                todos_db[index] = updated_todo
-                return updated_todo
-        return None
+    def update(self, todo_id: int, todo_update: TodoUpdate) -> Optional[Todo]:
+        db_todo = self.get_by_id(todo_id)
+        if not db_todo:
+            return None
+        
+        # Only update fields that are set (exclude_unset=True)
+        update_data = todo_update.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_todo, key, value)
+        
+        self.db.commit()
+        self.db.refresh(db_todo)
+        return db_todo
 
     def delete(self, todo_id: int) -> bool:
-        for index, todo in enumerate(todos_db):
-            if todo.id == todo_id:
-                del todos_db[index]
-                return True
-        return False
+        db_todo = self.get_by_id(todo_id)
+        if not db_todo:
+            return False
+        
+        self.db.delete(db_todo)
+        self.db.commit()
+        return True
 
-# Dependency Injection Helper (Singleton for Mem Repo)
-todo_repo = TodoRepository()
-def get_todo_repo() -> TodoRepository:
-    return todo_repo
+# Dependency Injection Helper
+def get_todo_repo(db: Session = Depends(get_db)) -> TodoRepository:
+    return TodoRepository(db)

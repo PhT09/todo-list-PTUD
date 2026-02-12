@@ -1,4 +1,4 @@
-const API_URL = 'http://127.0.0.1:8000';
+const API_URL = 'http://127.0.0.1:8000/api/v1';
 
 // Select DOM elements
 const todoInput = document.getElementById('todo-input');
@@ -8,7 +8,7 @@ const itemsLeft = document.getElementById('items-left');
 const clearCompletedBtn = document.getElementById('clear-completed');
 
 const searchInput = document.getElementById('search-input');
-const filterStatus = document.getElementById('filter-status');
+// const filterStatus = document.getElementById('filter-status'); // Removed in favor of tabs
 const sortOrderSelect = document.getElementById('sort-order');
 const prevBtn = document.getElementById('prev-btn');
 const nextBtn = document.getElementById('next-btn');
@@ -22,6 +22,7 @@ let totalItems = 0;
 let searchQuery = '';
 let currentFilter = 'all'; // all, active, completed
 let sortOrder = 'desc'; // desc, asc
+
 
 // --- API Functions ---
 
@@ -72,6 +73,7 @@ async function apiCreateTodo(todo) {
         return await response.json();
     } catch (error) {
         console.error('Error creating todo:', error);
+        throw error; // Re-throw to handle in UI
     }
 }
 
@@ -167,23 +169,28 @@ async function handleAddTodo() {
         is_done: false
     };
 
-    await apiCreateTodo(newTodo);
+    try {
+        await apiCreateTodo(newTodo);
 
-    todoInput.value = '';
-    // Reset filters
-    searchQuery = '';
-    searchInput.value = '';
-    currentFilter = 'all';
+        todoInput.value = '';
+        // Reset filters
+        searchQuery = '';
+        searchInput.value = '';
+        currentFilter = 'all'; // Reset internal state
 
-    // Reset Active Tab UI
-    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelector('.filter-btn[data-filter="all"]').classList.add('active');
+        // Reset Active Tab UI
+        document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+        const allBtn = document.querySelector('.filter-btn[data-filter="all"]');
+        if (allBtn) allBtn.classList.add('active');
 
-    sortOrder = 'desc';
-    sortOrderSelect.value = 'desc';
-    currentPage = 1;
+        sortOrder = 'desc';
+        sortOrderSelect.value = 'desc';
+        currentPage = 1;
 
-    await fetchTodos();
+        await fetchTodos();
+    } catch (e) {
+        // Error already logged/alerted
+    }
 }
 
 // Event Delegation
@@ -268,7 +275,6 @@ todoList.addEventListener('click', async (e) => {
             li.replaceWith(newLi);
 
             await apiUpdateTodo(todo);
-            // No fetch needed if success, local state is updated
         }
     }
 
@@ -340,10 +346,6 @@ todoInput.addEventListener('keypress', (e) => {
 });
 clearCompletedBtn.addEventListener('click', async () => {
     if (confirm('Bạn có chắc chắn muốn xóa tất cả công việc đã hoàn thành?')) {
-        // Logic này hơi phức tạp ở client vì pagination, 
-        // đúng ra nên có API delete bulk. 
-        // Ở đây tạm thời ta sẽ không implement bulk delete qua filter ở client 
-        // vì nó chỉ xóa những gì đang hiển thị.
         alert('Tính năng xóa hàng loạt cần nâng cấp backend hỗ trợ Bulk Delete!');
     }
 });

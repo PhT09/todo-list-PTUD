@@ -27,3 +27,7 @@ coverage/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.vite/
+frontend/.vite/
+frontend/dist/
+frontend/node_modules/

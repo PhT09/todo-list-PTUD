@@ -7,7 +7,7 @@ router = APIRouter()
 
 @router.get("/todos", response_model=PaginatedResponse)
 def read_todos(
-    skip: int = Query(0, ge=0),
+    skip: int = Query(0, ge=0, alias="offset"),
     limit: int = Query(10, ge=1, le=100),
     q: Optional[str] = None,
     is_done: Optional[bool] = None,

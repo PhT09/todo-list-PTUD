@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import Header from './components/Header'
 import TodoInput from './components/TodoInput'
 import FilterSortBar from './components/FilterSortBar'
@@ -7,8 +7,13 @@ import TodoList from './components/TodoList'
 import PaginationBar from './components/PaginationBar'
 import { todoApi } from './api/todoApi'
 import './index.css'
+import { AuthContext, AuthProvider } from './context/AuthContext'
+import LoginForm from './components/LoginForm'
+import RegisterForm from './components/RegisterForm'
 
-function App() {
+function TodoApp() {
+    const { user, token, logout } = useContext(AuthContext);
+
     const [todos, setTodos] = useState([])
     const [totalItems, setTotalItems] = useState(0)
     const [currentPage, setCurrentPage] = useState(1)
@@ -51,14 +56,17 @@ function App() {
             setTodos(res.data.items)
             setTotalItems(res.data.total)
         } catch (err) {
+            if (err.response?.status === 401) {
+                logout(); // Token expired
+            }
             console.error("Failed to fetch todos:", err)
         }
     }
 
     // Trigger fetch on dependency change
     useEffect(() => {
-        fetchTodos()
-    }, [currentPage, debouncedSearch, currentFilter, sortOrder])
+        if (token) fetchTodos()
+    }, [currentPage, debouncedSearch, currentFilter, sortOrder, token])
 
     // --- Handlers ---
 
@@ -149,7 +157,22 @@ function App() {
 
     return (
         <div className="container">
-            <Header />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <Header />
+                <button
+                    onClick={logout}
+                    style={{
+                        background: '#f87171',
+                        color: 'white',
+                        border: 'none',
+                        padding: '5px 10px',
+                        borderRadius: '5px',
+                        cursor: 'pointer'
+                    }}
+                >
+                    Đăng xuất
+                </button>
+            </div>
 
             <TodoInput onAdd={handleAdd} />
 
@@ -186,4 +209,26 @@ function App() {
     )
 }
 
-export default App
+function Main() {
+    const { token } = useContext(AuthContext);
+    const [isRegister, setIsRegister] = useState(false);
+
+    if (token) return <TodoApp />;
+
+    return (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+            {isRegister
+                ? <RegisterForm onSwitch={() => setIsRegister(false)} />
+                : <LoginForm onSwitch={() => setIsRegister(true)} />
+            }
+        </div>
+    );
+}
+
+export default function App() {
+    return (
+        <AuthProvider>
+            <Main />
+        </AuthProvider>
+    );
+}

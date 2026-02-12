@@ -1,61 +1,67 @@
-from fastapi import APIRouter, Depends, Query, Path, HTTPException
-from typing import Optional, Union
-from ..schemas.todo import TodoCreate, TodoUpdate, Todo, PaginatedResponse
-from ..services.todo_service import TodoService, get_todo_service
+from fastapi import APIRouter, Depends, Query, HTTPException, status
+from sqlalchemy.orm import Session
+from app.core.database import get_db
+from app.schemas.todo import TodoCreate, TodoUpdate, TodoResponse
+from app.repositories.todo_repository import TodoRepository
+from app.api.deps import get_current_user
+from app.models.user import User
 
-router = APIRouter()
+router = APIRouter(prefix="/todos", tags=["todos"])
 
-@router.get("/todos", response_model=PaginatedResponse)
+def get_todo_repo(db: Session = Depends(get_db)):
+    return TodoRepository(db)
+
+@router.get("/", response_model=dict)
 def read_todos(
-    skip: int = Query(0, ge=0, alias="offset"),
-    limit: int = Query(10, ge=1, le=100),
-    q: Optional[str] = None,
-    is_done: Optional[bool] = None,
+    limit: int = 10,
+    offset: int = 0,
+    q: str = None,
+    is_done: bool = None,
     sort_desc: bool = True,
-    service: TodoService = Depends(get_todo_service)
+    repo: TodoRepository = Depends(get_todo_repo),
+    current_user: User = Depends(get_current_user)
 ):
-    return service.get_todos(skip, limit, q, is_done, sort_desc)
+    todos = repo.get_todos(limit, offset, q, is_done, sort_desc, owner_id=current_user.id)
+    count = repo.count_todos(q, is_done, owner_id=current_user.id)
+    return {
+        "items": todos,
+        "total": count,
+        "limit": limit,
+        "offset": offset
+    }
 
-@router.post("/todos", response_model=Todo, status_code=201)
+@router.post("/", response_model=TodoResponse)
 def create_todo(
     todo: TodoCreate,
-    service: TodoService = Depends(get_todo_service)
+    repo: TodoRepository = Depends(get_todo_repo),
+    current_user: User = Depends(get_current_user)
 ):
-    return service.create_todo(todo)
+    return repo.create_todo(todo, owner_id=current_user.id)
 
-@router.get("/todos/{todo_id}", response_model=Todo)
-def read_todo(
-    todo_id: int = Path(..., title="The ID of the todo to get"),
-    service: TodoService = Depends(get_todo_service)
-):
-    return service.get_todo(todo_id)
-
-@router.put("/todos/{todo_id}", response_model=Todo)
+@router.patch("/{todo_id}", response_model=TodoResponse)
 def update_todo(
     todo_id: int,
-    todo: TodoCreate, # PUT replaces resource, so require all fields usually. But TodoCreate fits.
-    service: TodoService = Depends(get_todo_service)
+    updates: TodoUpdate,
+    repo: TodoRepository = Depends(get_todo_repo),
+    current_user: User = Depends(get_current_user)
 ):
-    return service.update_todo(todo_id, todo)
+    todo = repo.update_todo(todo_id, updates, owner_id=current_user.id)
+    if not todo:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Todo not found or not owned by user"
+        )
+    return todo
 
-@router.patch("/todos/{todo_id}", response_model=Todo)
-def patch_todo(
-    todo_id: int,
-    todo: TodoUpdate, # PATCH updates partially, all fields optional
-    service: TodoService = Depends(get_todo_service)
-):
-    return service.update_todo(todo_id, todo)
-
-@router.post("/todos/{todo_id}/complete", response_model=Todo)
-def complete_todo(
-    todo_id: int,
-    service: TodoService = Depends(get_todo_service)
-):
-    return service.complete_todo(todo_id)
-
-@router.delete("/todos/{todo_id}")
+@router.delete("/{todo_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_todo(
     todo_id: int,
-    service: TodoService = Depends(get_todo_service)
+    repo: TodoRepository = Depends(get_todo_repo),
+    current_user: User = Depends(get_current_user)
 ):
-    return service.delete_todo(todo_id)
+    success = repo.delete_todo(todo_id, owner_id=current_user.id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Todo not found or not owned by user"
+        )

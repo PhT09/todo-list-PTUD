@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 from typing import Optional, List
 
@@ -23,15 +23,16 @@ class TodoUpdate(BaseModel):
     is_done: Optional[bool] = None
 
 # Response Model (Output)
-class Todo(TodoBase):
+class TodoResponse(TodoBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    owner_id: int # Add owner_id to response if needed, or keep hidden
 
     model_config = ConfigDict(from_attributes=True)
 
 class PaginatedResponse(BaseModel):
-    items: List[Todo]
+    items: List[TodoResponse]
     total: int
     limit: int
     offset: int

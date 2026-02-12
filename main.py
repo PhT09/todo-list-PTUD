@@ -1,8 +1,24 @@
-import uvicorn
-from app.main import app
+from fastapi import FastAPI
+from app.routers import todos, auth
+from app.core.database import Base, engine
+from fastapi.middleware.cors import CORSMiddleware
 
-# This entry point redirects to the actual FastAPI app in app/main.py
-# Run with: uvicorn main:app --reload
+# Create DB Tables (dev only, migrations preferred)
+# Base.metadata.create_all(bind=engine)
 
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth.router, prefix="/api/v1")
+app.include_router(todos.router, prefix="/api/v1")
+
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to To-Do API"}

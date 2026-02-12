@@ -2,13 +2,13 @@ const API_URL = 'http://127.0.0.1:8000/api/v1';
 
 // Select DOM elements
 const todoInput = document.getElementById('todo-input');
+const todoDescInput = document.getElementById('todo-desc-input'); // New Description Input
 const addBtn = document.getElementById('add-btn');
 const todoList = document.getElementById('todo-list');
 const itemsLeft = document.getElementById('items-left');
 const clearCompletedBtn = document.getElementById('clear-completed');
 
 const searchInput = document.getElementById('search-input');
-// const filterStatus = document.getElementById('filter-status'); // Removed in favor of tabs
 const sortOrderSelect = document.getElementById('sort-order');
 const prevBtn = document.getElementById('prev-btn');
 const nextBtn = document.getElementById('next-btn');
@@ -17,23 +17,31 @@ const pageInfo = document.getElementById('page-info');
 // State
 let todos = [];
 let currentPage = 1;
-const limit = 5;
+const limit = 5; // Pagination limit
 let totalItems = 0;
 let searchQuery = '';
 let currentFilter = 'all'; // all, active, completed
 let sortOrder = 'desc'; // desc, asc
 
+// Helper for XSS safety
+function escapeHtml(text) {
+    if (!text) return "";
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
 
 // --- API Functions ---
 
-// Fetch todos with filtering and pagination
 async function fetchTodos() {
     try {
         const offset = (currentPage - 1) * limit;
         const isDesc = sortOrder === 'desc';
         let url = `${API_URL}/todos?limit=${limit}&offset=${offset}&sort_desc=${isDesc}`;
 
-        // Add Filters
         if (searchQuery) {
             url += `&q=${encodeURIComponent(searchQuery)}`;
         }
@@ -73,20 +81,28 @@ async function apiCreateTodo(todo) {
         return await response.json();
     } catch (error) {
         console.error('Error creating todo:', error);
-        throw error; // Re-throw to handle in UI
+        throw error;
     }
 }
 
-async function apiUpdateTodo(todo) {
+async function apiUpdateTodo(id, todoUpdate) {
     try {
-        const response = await fetch(`${API_URL}/todos/${todo.id}`, {
-            method: 'PUT',
+        // Use PATCH for partial updates
+        const response = await fetch(`${API_URL}/todos/${id}`, {
+            method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(todo),
+            body: JSON.stringify(todoUpdate),
         });
-        if (!response.ok) throw new Error('Failed to update todo');
+
+        if (!response.ok) {
+            const err = await response.json();
+            console.error('Update failed:', err);
+            throw new Error('Failed to update todo');
+        }
+        return await response.json();
     } catch (error) {
         console.error('Error updating todo:', error);
+        throw error;
     }
 }
 
@@ -98,6 +114,7 @@ async function apiDeleteTodo(id) {
         if (!response.ok) throw new Error('Failed to delete todo');
     } catch (error) {
         console.error('Error deleting todo:', error);
+        throw error;
     }
 }
 
@@ -110,7 +127,6 @@ function updatePagination() {
     prevBtn.disabled = currentPage <= 1;
     nextBtn.disabled = currentPage >= totalPages;
 
-    // Update items left count (contextual)
     itemsLeft.textContent = `${totalItems} công việc tìm thấy`;
 }
 
@@ -119,14 +135,18 @@ function createTodoElement(todo) {
     li.className = `todo-item ${todo.is_done ? 'completed' : ''}`;
     li.dataset.id = todo.id;
 
-    // Normal View
+    const descHtml = todo.description ? `<div class="todo-desc">${escapeHtml(todo.description)}</div>` : '';
+
     li.innerHTML = `
-        <span class="todo-text">${todo.title}</span>
+        <div class="todo-content">
+            <div class="todo-title">${escapeHtml(todo.title)}</div>
+            ${descHtml}
+        </div>
         <div class="actions">
             <button class="action-btn check-btn" title="Hoàn thành/Làm lại">
                 <i class="fa-solid ${todo.is_done ? 'fa-rotate-left' : 'fa-check'}"></i>
             </button>
-            <button class="action-btn edit-btn" title="Sửa tiêu đề">
+            <button class="action-btn edit-btn" title="Sửa nội dung">
                 <i class="fa-solid fa-pen"></i>
             </button>
             <button class="action-btn delete-btn" title="Xóa">
@@ -154,88 +174,162 @@ function renderTodos() {
 // --- Action Handlers ---
 
 async function handleAddTodo() {
-    const text = todoInput.value.trim();
-    if (text === '') return;
+    const title = todoInput.value.trim();
+    const description = todoDescInput.value.trim();
 
-    // Validate length client-side
-    if (text.length < 3 || text.length > 100) {
+    if (title === '') return;
+
+    if (title.length < 3 || title.length > 100) {
         alert('Tiêu đề phải từ 3 đến 100 ký tự');
         return;
     }
 
-    const newTodo = {
-        id: Date.now(),
-        title: text,
-        is_done: false
-    };
+    // Don't send ID, let backend generate it
+    const newTodoPayload = { title, description, is_done: false };
 
     try {
-        await apiCreateTodo(newTodo);
+        const createdTodo = await apiCreateTodo(newTodoPayload);
+
+        // Optimistic UI Update: Prepend to list directly to avoid full reload blink
+        // Only if sortOrder is 'desc' (Mới nhất) and page is 1
+        // Or we can just fetchTodos() but we want to avoid blink.
+
+        // Let's rely on fetchTodos() for consistency but try to be smoother?
+        // Actually, user explicitly asked to fix "blink".
+        // The blink comes from innerHTML clear.
+        // If we manually prepend, we don't clear list.
+
+        const isFirstPage = currentPage === 1;
+        const isDesc = sortOrder === 'desc';
+        const isAllOrActive = currentFilter !== 'completed';
+
+        if (isFirstPage && isDesc && isAllOrActive) {
+            const li = createTodoElement(createdTodo);
+            todoList.prepend(li); // Add to top
+            todos.unshift(createdTodo);
+
+            // Remove last item if over limit
+            if (todos.length > limit) {
+                todoList.lastElementChild.remove();
+                todos.pop();
+            }
+            totalItems++;
+            updatePagination();
+        } else {
+            // If we are on other pages, we should probably fetch to see correct state
+            // Or just alert user? No, fetch.
+            await fetchTodos();
+        }
 
         todoInput.value = '';
-        // Reset filters
-        searchQuery = '';
-        searchInput.value = '';
-        currentFilter = 'all'; // Reset internal state
-
-        // Reset Active Tab UI
-        document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-        const allBtn = document.querySelector('.filter-btn[data-filter="all"]');
-        if (allBtn) allBtn.classList.add('active');
-
-        sortOrder = 'desc';
-        sortOrderSelect.value = 'desc';
-        currentPage = 1;
-
-        await fetchTodos();
+        todoDescInput.value = ''; // Clear desc
     } catch (e) {
-        // Error already logged/alerted
+        // Error handled in api func
     }
 }
 
 // Event Delegation
 todoList.addEventListener('click', async (e) => {
     const target = e.target;
-    // Find closest interactive elements
+    // Helper to find button even if icon clicked
     const btn = target.closest('button');
-    const textSpan = target.closest('.todo-text');
+    const contentDiv = target.closest('.todo-content');
     const li = target.closest('li.todo-item');
 
     if (!li) return;
     const id = Number(li.dataset.id);
-    const todo = todos.find(t => t.id === id);
+    const todoIndex = todos.findIndex(t => t.id === id);
+    if (todoIndex === -1 && !li.classList.contains('edit-mode')) return; // Safety check
+
+    let todo = todos[todoIndex];
 
     // 1. Toggle Status
-    if (textSpan || (btn && btn.classList.contains('check-btn'))) {
+    if ((contentDiv && !li.classList.contains('edit-mode')) || (btn && btn.classList.contains('check-btn'))) {
         if (todo) {
-            todo.is_done = !todo.is_done;
+            const newStatus = !todo.is_done;
+            // Optimistic update
+            todo.is_done = newStatus;
             li.classList.toggle('completed');
-            const icon = li.querySelector('.check-btn i');
-            if (icon) icon.className = `fa-solid ${todo.is_done ? 'fa-rotate-left' : 'fa-check'}`;
 
-            await apiUpdateTodo(todo);
-            if (currentFilter !== 'all') fetchTodos();
+            // Toggle icon
+            const icon = li.querySelector('.check-btn i');
+            if (icon) icon.className = `fa-solid ${newStatus ? 'fa-rotate-left' : 'fa-check'}`;
+
+            try {
+                await apiUpdateTodo(id, { is_done: newStatus });
+                // Should we remove item if filter is active/completed?
+                // To avoid blink, let's keep it but maybe fade it?
+                // User flow: if filter is 'active' and I check 'done', it should disappear?
+                if (currentFilter !== 'all') {
+                    // If filter mismatch, remove element gracefully
+                    li.style.transition = 'all 0.3s';
+                    li.style.opacity = '0';
+                    setTimeout(() => {
+                        li.remove();
+                        todos.splice(todoIndex, 1);
+                        totalItems--;
+                        updatePagination();
+                        // If page becomes empty, fetch previous
+                        if (todos.length === 0 && currentPage > 1) {
+                            currentPage--;
+                            fetchTodos();
+                        } else if (todos.length < limit) {
+                            // Try to fill gap? Complex. Let's just fetchTodos if we want perfection.
+                            fetchTodos();
+                        }
+                    }, 300);
+                }
+            } catch (err) {
+                // Revert
+                todo.is_done = !newStatus;
+                li.classList.toggle('completed');
+                if (icon) icon.className = `fa-solid ${!newStatus ? 'fa-rotate-left' : 'fa-check'}`;
+                alert('Có lỗi xảy ra khi cập nhật trạng thái');
+            }
         }
     }
 
     // 2. Delete
     else if (btn && btn.classList.contains('delete-btn')) {
         if (confirm('Bạn có chắc chắn muốn xóa?')) {
+            // Optimistic Remove
+            li.style.transition = 'all 0.3s';
             li.style.opacity = '0';
-            setTimeout(() => li.remove(), 300);
-            await apiDeleteTodo(id);
-            setTimeout(fetchTodos, 350);
+            setTimeout(async () => {
+                li.remove();
+
+                try {
+                    await apiDeleteTodo(id);
+                    // Update state
+                    todos.splice(todoIndex, 1);
+                    totalItems--;
+                    updatePagination();
+
+                    // If list too small, fetch to refill
+                    fetchTodos();
+                } catch (err) {
+                    alert('Không thể xóa công việc');
+                    fetchTodos(); // Restore
+                }
+            }, 300);
         }
     }
 
-    // 3. Edit Mode - Switch to Input
+    // 3. Edit Mode - Switch to Inputs
     else if (btn && btn.classList.contains('edit-btn')) {
         if (!todo) return;
 
-        // Switch Li content to Edit Form
         li.classList.add('edit-mode');
+
+        // Inject Edit Form
+        const currentTitle = todo.title;
+        const currentDesc = todo.description || '';
+
         li.innerHTML = `
-            <input type="text" class="edit-input" value="${todo.title}">
+            <div class="edit-form">
+                <input type="text" class="edit-input-title" value="${escapeHtml(currentTitle)}" placeholder="Tiêu đề">
+                <textarea class="edit-input-desc" placeholder="Mô tả" rows="2">${escapeHtml(currentDesc)}</textarea>
+            </div>
             <div class="actions">
                 <button class="action-btn save-btn" title="Lưu">
                     <i class="fa-solid fa-check"></i>
@@ -246,35 +340,40 @@ todoList.addEventListener('click', async (e) => {
             </div>
         `;
 
-        const input = li.querySelector('.edit-input');
-        input.focus();
-
-        // Handle Enter key in edit input
-        input.addEventListener('keypress', (ev) => {
-            if (ev.key === 'Enter') {
-                li.querySelector('.save-btn').click();
-            }
-        });
+        const inputTitle = li.querySelector('.edit-input-title');
+        inputTitle.focus();
     }
 
     // 4. Save Edit
     else if (btn && btn.classList.contains('save-btn')) {
-        const input = li.querySelector('.edit-input');
-        const newTitle = input.value.trim();
+        const inputTitle = li.querySelector('.edit-input-title');
+        const inputDesc = li.querySelector('.edit-input-desc');
+
+        const newTitle = inputTitle.value.trim();
+        const newDesc = inputDesc.value.trim();
 
         if (newTitle.length < 3 || newTitle.length > 100) {
             alert('Tiêu đề phải từ 3 đến 100 ký tự');
-            input.focus();
+            inputTitle.focus();
             return;
         }
 
-        if (todo) {
-            todo.title = newTitle;
-            // Optimistic update
-            const newLi = createTodoElement(todo);
+        // Call API
+        try {
+            const updatedTodo = await apiUpdateTodo(id, {
+                title: newTitle,
+                description: newDesc
+            });
+
+            // Update local state
+            todos[todoIndex] = updatedTodo;
+
+            // Render new Item inplace
+            const newLi = createTodoElement(updatedTodo);
             li.replaceWith(newLi);
 
-            await apiUpdateTodo(todo);
+        } catch (err) {
+            alert('Lỗi cập nhật công việc');
         }
     }
 
@@ -296,20 +395,15 @@ searchInput.addEventListener('input', (e) => {
         searchQuery = e.target.value.trim();
         currentPage = 1;
         fetchTodos();
-    }, 300); // 300ms debounce
+    }, 300);
 });
 
 // Filter Tabs Event
 const filterButtons = document.querySelectorAll('.filter-btn');
-
 filterButtons.forEach(btn => {
     btn.addEventListener('click', () => {
-        // Remove active from all
         filterButtons.forEach(b => b.classList.remove('active'));
-        // Add active to click
         btn.classList.add('active');
-
-        // Update Filter Logic
         currentFilter = btn.dataset.filter;
         currentPage = 1;
         fetchTodos();
@@ -318,7 +412,7 @@ filterButtons.forEach(btn => {
 
 sortOrderSelect.addEventListener('change', (e) => {
     sortOrder = e.target.value;
-    currentPage = 1; // Reset về trang 1 khi đổi cách sắp xếp
+    currentPage = 1;
     fetchTodos();
 });
 

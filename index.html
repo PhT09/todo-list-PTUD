@@ -27,11 +27,14 @@
             <p>Hôm nay bạn cần làm gì?</p>
         </header>
 
-        <div class="input-group">
-            <input type="text" id="todo-input" placeholder="Thêm công việc mới...">
-            <button id="add-btn">
-                <i class="fa-solid fa-plus"></i>
-            </button>
+        <div class="input-container">
+            <div class="input-group">
+                <input type="text" id="todo-input" placeholder="Tiêu đề công việc...">
+                <button id="add-btn" title="Thêm công việc">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+            </div>
+            <textarea id="todo-desc-input" placeholder="Mô tả chi tiết (tùy chọn)..." rows="2"></textarea>
         </div>
 
         <!-- New: Search & Filter Toolbar -->

@@ -1,8 +1,8 @@
 const API_URL = 'http://127.0.0.1:8000/api/v1';
 
-// Select DOM elements
+// --- Select DOM elements ---
 const todoInput = document.getElementById('todo-input');
-const todoDescInput = document.getElementById('todo-desc-input'); // New Description Input
+const todoDescInput = document.getElementById('todo-desc-input');
 const addBtn = document.getElementById('add-btn');
 const todoList = document.getElementById('todo-list');
 const itemsLeft = document.getElementById('items-left');
@@ -14,16 +14,18 @@ const prevBtn = document.getElementById('prev-btn');
 const nextBtn = document.getElementById('next-btn');
 const pageInfo = document.getElementById('page-info');
 
-// State
-let todos = [];
+// --- State ---
+let todos = []; // Local mirror of displayed todos
 let currentPage = 1;
-const limit = 5; // Pagination limit
+const limit = 5;
 let totalItems = 0;
 let searchQuery = '';
-let currentFilter = 'all'; // all, active, completed
-let sortOrder = 'desc'; // desc, asc
+let currentFilter = 'all'; // 'all', 'active', 'completed'
+let sortOrder = 'desc'; // 'desc', 'asc'
+let debounceTimer;
 
-// Helper for XSS safety
+// --- Helper Functions ---
+
 function escapeHtml(text) {
     if (!text) return "";
     return text
@@ -34,93 +36,7 @@ function escapeHtml(text) {
         .replace(/'/g, "&#039;");
 }
 
-// --- API Functions ---
-
-async function fetchTodos() {
-    try {
-        const offset = (currentPage - 1) * limit;
-        const isDesc = sortOrder === 'desc';
-        let url = `${API_URL}/todos?limit=${limit}&offset=${offset}&sort_desc=${isDesc}`;
-
-        if (searchQuery) {
-            url += `&q=${encodeURIComponent(searchQuery)}`;
-        }
-
-        if (currentFilter === 'active') {
-            url += `&is_done=false`;
-        } else if (currentFilter === 'completed') {
-            url += `&is_done=true`;
-        }
-
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Failed to fetch todos');
-
-        const data = await response.json();
-        todos = data.items;
-        totalItems = data.total;
-
-        renderTodos();
-        updatePagination();
-    } catch (error) {
-        console.error('Error fetching todos:', error);
-    }
-}
-
-async function apiCreateTodo(todo) {
-    try {
-        const response = await fetch(`${API_URL}/todos`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(todo),
-        });
-        if (!response.ok) {
-            const err = await response.json();
-            alert(`Lỗi: ${err.detail || 'Không thể tạo công việc'}`);
-            throw new Error('Failed to create todo');
-        }
-        return await response.json();
-    } catch (error) {
-        console.error('Error creating todo:', error);
-        throw error;
-    }
-}
-
-async function apiUpdateTodo(id, todoUpdate) {
-    try {
-        // Use PATCH for partial updates
-        const response = await fetch(`${API_URL}/todos/${id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(todoUpdate),
-        });
-
-        if (!response.ok) {
-            const err = await response.json();
-            console.error('Update failed:', err);
-            throw new Error('Failed to update todo');
-        }
-        return await response.json();
-    } catch (error) {
-        console.error('Error updating todo:', error);
-        throw error;
-    }
-}
-
-async function apiDeleteTodo(id) {
-    try {
-        const response = await fetch(`${API_URL}/todos/${id}`, {
-            method: 'DELETE',
-        });
-        if (!response.ok) throw new Error('Failed to delete todo');
-    } catch (error) {
-        console.error('Error deleting todo:', error);
-        throw error;
-    }
-}
-
-// --- UI Functions ---
-
-function updatePagination() {
+function updatePaginationInfo() {
     const totalPages = Math.ceil(totalItems / limit) || 1;
     pageInfo.textContent = `Trang ${currentPage} / ${totalPages}`;
 
@@ -128,7 +44,68 @@ function updatePagination() {
     nextBtn.disabled = currentPage >= totalPages;
 
     itemsLeft.textContent = `${totalItems} công việc tìm thấy`;
+
+    // Check empty state visual
+    if (todos.length === 0 && totalItems === 0) {
+        todoList.innerHTML = '<li style="text-align:center; color: #64748b; padding: 20px;" id="empty-msg">Không có công việc nào</li>';
+    } else if (todos.length > 0) {
+        const emptyMsg = document.getElementById('empty-msg');
+        if (emptyMsg) emptyMsg.remove();
+    }
 }
+
+// --- API Calls ---
+
+async function apiFetchTodos() {
+    try {
+        const offset = (currentPage - 1) * limit;
+        const isDesc = sortOrder === 'desc';
+        let url = `${API_URL}/todos?limit=${limit}&offset=${offset}&sort_desc=${isDesc}`;
+
+        if (searchQuery) url += `&q=${encodeURIComponent(searchQuery)}`;
+
+        if (currentFilter === 'active') url += `&is_done=false`;
+        else if (currentFilter === 'completed') url += `&is_done=true`;
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Failed to fetch');
+
+        const data = await response.json();
+        return data; // {items, total}
+    } catch (error) {
+        console.error(error);
+        return { items: [], total: 0 };
+    }
+}
+
+async function apiCreateTodo(todo) {
+    const response = await fetch(`${API_URL}/todos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(todo)
+    });
+    if (!response.ok) throw new Error('Failed to create');
+    return await response.json();
+}
+
+async function apiUpdateTodo(id, updates) {
+    // Using PATCH for partial updates
+    const response = await fetch(`${API_URL}/todos/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+    });
+    if (!response.ok) throw new Error('Failed to update');
+    return await response.json();
+}
+
+async function apiDeleteTodo(id) {
+    const response = await fetch(`${API_URL}/todos/${id}`, { method: 'DELETE' });
+    if (!response.ok) throw new Error('Failed to delete');
+    return true;
+}
+
+// --- DOM Manipulation ---
 
 function createTodoElement(todo) {
     const li = document.createElement('li');
@@ -157,81 +134,94 @@ function createTodoElement(todo) {
     return li;
 }
 
-function renderTodos() {
+function renderTodoList() {
     todoList.innerHTML = '';
-
     if (todos.length === 0) {
-        todoList.innerHTML = '<li style="text-align:center; color: #64748b; padding: 20px;">Không có công việc nào</li>';
+        updatePaginationInfo(); // Will show empty msg
         return;
     }
 
+    const frag = document.createDocumentFragment();
     todos.forEach(todo => {
-        const li = createTodoElement(todo);
-        todoList.appendChild(li);
+        frag.appendChild(createTodoElement(todo));
     });
+    todoList.appendChild(frag);
+    updatePaginationInfo();
 }
 
-// --- Action Handlers ---
+async function refreshTodos() {
+    const data = await apiFetchTodos();
+    todos = data.items;
+    totalItems = data.total;
+    renderTodoList();
+}
 
+// --- Event Handlers ---
+
+// 1. ADD TODO
 async function handleAddTodo() {
     const title = todoInput.value.trim();
     const description = todoDescInput.value.trim();
-
-    if (title === '') return;
 
     if (title.length < 3 || title.length > 100) {
         alert('Tiêu đề phải từ 3 đến 100 ký tự');
         return;
     }
 
-    // Don't send ID, let backend generate it
-    const newTodoPayload = { title, description, is_done: false };
-
     try {
-        const createdTodo = await apiCreateTodo(newTodoPayload);
+        const newTodo = await apiCreateTodo({ title, description, is_done: false });
 
-        // Optimistic UI Update: Prepend to list directly to avoid full reload blink
-        // Only if sortOrder is 'desc' (Mới nhất) and page is 1
-        // Or we can just fetchTodos() but we want to avoid blink.
+        // Reset Inputs
+        todoInput.value = '';
+        todoDescInput.value = '';
 
-        // Let's rely on fetchTodos() for consistency but try to be smoother?
-        // Actually, user explicitly asked to fix "blink".
-        // The blink comes from innerHTML clear.
-        // If we manually prepend, we don't clear list.
+        // Surgical Update Logic
+        // Check if new item belongs on current page
+        // Conditions: 
+        // 1. Filter: 'all' or 'active' (since new items are not done)
+        // 2. Sort: 'desc' (Newest first) -> Should appear at top of Page 1
+        // 3. Sort: 'asc'  (Oldest first) -> Should appear at end of LAST Page. If we are on first page, we won't see it (likely).
 
+        const matchesFilter = currentFilter !== 'completed';
         const isFirstPage = currentPage === 1;
-        const isDesc = sortOrder === 'desc';
-        const isAllOrActive = currentFilter !== 'completed';
+        const isDescSort = sortOrder === 'desc';
 
-        if (isFirstPage && isDesc && isAllOrActive) {
-            const li = createTodoElement(createdTodo);
-            todoList.prepend(li); // Add to top
-            todos.unshift(createdTodo);
+        // Always update total count
+        totalItems++;
 
-            // Remove last item if over limit
+        if (matchesFilter && isFirstPage && isDescSort) {
+            // Remove empty message if exists
+            const emptyMsg = document.getElementById('empty-msg');
+            if (emptyMsg) emptyMsg.remove();
+
+            // UI: Prepend
+            const newLi = createTodoElement(newTodo);
+            todoList.prepend(newLi);
+
+            // State: Unshift
+            todos.unshift(newTodo);
+
+            // Pagination Limit Enforcement
             if (todos.length > limit) {
-                todoList.lastElementChild.remove();
+                // Remove last visualization
+                if (todoList.lastElementChild) todoList.lastElementChild.remove();
+                // Remove from local state
                 todos.pop();
             }
-            totalItems++;
-            updatePagination();
-        } else {
-            // If we are on other pages, we should probably fetch to see correct state
-            // Or just alert user? No, fetch.
-            await fetchTodos();
         }
 
-        todoInput.value = '';
-        todoDescInput.value = ''; // Clear desc
+        // Update pagination bar text (Total changed)
+        updatePaginationInfo();
+
     } catch (e) {
-        // Error handled in api func
+        alert('Lỗi khi thêm công việc: ' + e.message);
     }
 }
 
-// Event Delegation
+// Event Delegation for List Actions
 todoList.addEventListener('click', async (e) => {
     const target = e.target;
-    // Helper to find button even if icon clicked
+    // Normalize target to specific interactive elements
     const btn = target.closest('button');
     const contentDiv = target.closest('.todo-content');
     const li = target.closest('li.todo-item');
@@ -239,166 +229,151 @@ todoList.addEventListener('click', async (e) => {
     if (!li) return;
     const id = Number(li.dataset.id);
     const todoIndex = todos.findIndex(t => t.id === id);
-    if (todoIndex === -1 && !li.classList.contains('edit-mode')) return; // Safety check
+    const todo = todos[todoIndex];
 
-    let todo = todos[todoIndex];
-
-    // 1. Toggle Status
+    // 2. TOGGLE STATUS
     if ((contentDiv && !li.classList.contains('edit-mode')) || (btn && btn.classList.contains('check-btn'))) {
-        if (todo) {
-            const newStatus = !todo.is_done;
-            // Optimistic update
-            todo.is_done = newStatus;
-            li.classList.toggle('completed');
+        if (!todo) return;
+        const newStatus = !todo.is_done;
 
-            // Toggle icon
-            const icon = li.querySelector('.check-btn i');
-            if (icon) icon.className = `fa-solid ${newStatus ? 'fa-rotate-left' : 'fa-check'}`;
+        // Optimistic UI Class Toggle (Instant feedback)
+        li.classList.toggle('completed');
+        const icon = li.querySelector('.check-btn i');
+        if (icon) icon.className = `fa-solid ${newStatus ? 'fa-rotate-left' : 'fa-check'}`;
 
-            try {
-                await apiUpdateTodo(id, { is_done: newStatus });
-                // Should we remove item if filter is active/completed?
-                // To avoid blink, let's keep it but maybe fade it?
-                // User flow: if filter is 'active' and I check 'done', it should disappear?
-                if (currentFilter !== 'all') {
-                    // If filter mismatch, remove element gracefully
-                    li.style.transition = 'all 0.3s';
-                    li.style.opacity = '0';
-                    setTimeout(() => {
-                        li.remove();
-                        todos.splice(todoIndex, 1);
-                        totalItems--;
-                        updatePagination();
-                        // If page becomes empty, fetch previous
-                        if (todos.length === 0 && currentPage > 1) {
-                            currentPage--;
-                            fetchTodos();
-                        } else if (todos.length < limit) {
-                            // Try to fill gap? Complex. Let's just fetchTodos if we want perfection.
-                            fetchTodos();
-                        }
-                    }, 300);
-                }
-            } catch (err) {
-                // Revert
-                todo.is_done = !newStatus;
-                li.classList.toggle('completed');
-                if (icon) icon.className = `fa-solid ${!newStatus ? 'fa-rotate-left' : 'fa-check'}`;
-                alert('Có lỗi xảy ra khi cập nhật trạng thái');
-            }
-        }
-    }
+        try {
+            // API Call
+            const updatedTodo = await apiUpdateTodo(id, { is_done: newStatus });
 
-    // 2. Delete
-    else if (btn && btn.classList.contains('delete-btn')) {
-        if (confirm('Bạn có chắc chắn muốn xóa?')) {
-            // Optimistic Remove
-            li.style.transition = 'all 0.3s';
-            li.style.opacity = '0';
-            setTimeout(async () => {
+            // Sync Local State
+            todos[todoIndex] = updatedTodo;
+
+            // Surgical Check: Does it still belong in this list?
+            let shouldRemove = false;
+            if (currentFilter === 'active' && newStatus === true) shouldRemove = true;
+            if (currentFilter === 'completed' && newStatus === false) shouldRemove = true;
+
+            if (shouldRemove) {
                 li.remove();
+                todos.splice(todoIndex, 1);
+                totalItems--;
 
-                try {
-                    await apiDeleteTodo(id);
-                    // Update state
-                    todos.splice(todoIndex, 1);
-                    totalItems--;
-                    updatePagination();
-
-                    // If list too small, fetch to refill
-                    fetchTodos();
-                } catch (err) {
-                    alert('Không thể xóa công việc');
-                    fetchTodos(); // Restore
+                // If page becomes empty, we might need to fetch
+                if (todos.length === 0 && totalItems > 0) {
+                    // Go to previous page? or Stay and fetch? 
+                    // Usually stay. But if we are on page 2 and it becomes empty, go to page 1.
+                    if (currentPage > 1) {
+                        currentPage--;
+                    }
+                    refreshTodos(); // Fetch to refill
+                } else {
+                    updatePaginationInfo();
                 }
-            }, 300);
+            }
+
+        } catch (e) {
+            // Revert UI on error
+            li.classList.toggle('completed');
+            if (icon) icon.className = `fa-solid ${!newStatus ? 'fa-rotate-left' : 'fa-check'}`;
+            alert('Lỗi cập nhật trạng thái');
         }
     }
 
-    // 3. Edit Mode - Switch to Inputs
+    // 3. DELETE
+    else if (btn && btn.classList.contains('delete-btn')) {
+        if (!confirm('Bạn có chắc chắn xóa?')) return;
+
+        try {
+            // Visual fade out first?
+            li.style.opacity = '0.5';
+
+            await apiDeleteTodo(id);
+
+            // Surgical DOM Removal
+            li.remove();
+
+            // Update State
+            todos.splice(todoIndex, 1);
+            totalItems--;
+
+            // Pagination Logic
+            if (todos.length === 0 && totalItems > 0) {
+                if (currentPage > 1) currentPage--;
+                refreshTodos(); // Fetch to fill the page
+            } else {
+                updatePaginationInfo();
+            }
+
+        } catch (e) {
+            li.style.opacity = '1';
+            alert('Lỗi xóa công việc');
+        }
+    }
+
+    // 4. ENTER EDIT MODE
     else if (btn && btn.classList.contains('edit-btn')) {
         if (!todo) return;
-
         li.classList.add('edit-mode');
-
-        // Inject Edit Form
-        const currentTitle = todo.title;
-        const currentDesc = todo.description || '';
-
+        // Replace content with Form
         li.innerHTML = `
             <div class="edit-form">
-                <input type="text" class="edit-input-title" value="${escapeHtml(currentTitle)}" placeholder="Tiêu đề">
-                <textarea class="edit-input-desc" placeholder="Mô tả" rows="2">${escapeHtml(currentDesc)}</textarea>
+                <input type="text" class="edit-input-title" value="${escapeHtml(todo.title)}">
+                <textarea class="edit-input-desc" rows="2">${escapeHtml(todo.description || '')}</textarea>
             </div>
             <div class="actions">
-                <button class="action-btn save-btn" title="Lưu">
-                    <i class="fa-solid fa-check"></i>
-                </button>
-                <button class="action-btn cancel-btn" title="Hủy">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
+                <button class="action-btn save-btn"><i class="fa-solid fa-check"></i></button>
+                <button class="action-btn cancel-btn"><i class="fa-solid fa-xmark"></i></button>
             </div>
         `;
-
-        const inputTitle = li.querySelector('.edit-input-title');
-        inputTitle.focus();
+        li.querySelector('.edit-input-title').focus();
     }
 
-    // 4. Save Edit
+    // 5. SAVE EDIT
     else if (btn && btn.classList.contains('save-btn')) {
-        const inputTitle = li.querySelector('.edit-input-title');
-        const inputDesc = li.querySelector('.edit-input-desc');
+        const titleVal = li.querySelector('.edit-input-title').value.trim();
+        const descVal = li.querySelector('.edit-input-desc').value.trim();
 
-        const newTitle = inputTitle.value.trim();
-        const newDesc = inputDesc.value.trim();
-
-        if (newTitle.length < 3 || newTitle.length > 100) {
-            alert('Tiêu đề phải từ 3 đến 100 ký tự');
-            inputTitle.focus();
+        if (titleVal.length < 3) {
+            alert('Tiêu đề quá ngắn');
             return;
         }
 
-        // Call API
         try {
-            const updatedTodo = await apiUpdateTodo(id, {
-                title: newTitle,
-                description: newDesc
-            });
+            const updatedTodo = await apiUpdateTodo(id, { title: titleVal, description: descVal });
 
-            // Update local state
+            // Update State
             todos[todoIndex] = updatedTodo;
 
-            // Render new Item inplace
+            // Surgical Replace
             const newLi = createTodoElement(updatedTodo);
             li.replaceWith(newLi);
 
-        } catch (err) {
-            alert('Lỗi cập nhật công việc');
+        } catch (e) {
+            alert('Lỗi lưu công việc');
         }
     }
 
-    // 5. Cancel Edit
+    // 6. CANCEL EDIT
     else if (btn && btn.classList.contains('cancel-btn')) {
-        // Re-render original item
-        if (todo) {
-            const originalLi = createTodoElement(todo);
-            li.replaceWith(originalLi);
-        }
+        // Re-create original element
+        const originalLi = createTodoElement(todo);
+        li.replaceWith(originalLi);
     }
 });
 
-// Filter & Search Events
-let debounceTimer;
+
+// --- Filter & Pagination Handlers ---
+
 searchInput.addEventListener('input', (e) => {
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
         searchQuery = e.target.value.trim();
         currentPage = 1;
-        fetchTodos();
+        refreshTodos();
     }, 300);
 });
 
-// Filter Tabs Event
+// Tabs
 const filterButtons = document.querySelectorAll('.filter-btn');
 filterButtons.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -406,22 +381,20 @@ filterButtons.forEach(btn => {
         btn.classList.add('active');
         currentFilter = btn.dataset.filter;
         currentPage = 1;
-        fetchTodos();
+        refreshTodos();
     });
 });
 
 sortOrderSelect.addEventListener('change', (e) => {
     sortOrder = e.target.value;
     currentPage = 1;
-    fetchTodos();
+    refreshTodos();
 });
 
-
-// Pagination Events
 prevBtn.addEventListener('click', () => {
     if (currentPage > 1) {
         currentPage--;
-        fetchTodos();
+        refreshTodos();
     }
 });
 
@@ -429,20 +402,14 @@ nextBtn.addEventListener('click', () => {
     const totalPages = Math.ceil(totalItems / limit);
     if (currentPage < totalPages) {
         currentPage++;
-        fetchTodos();
+        refreshTodos();
     }
 });
 
-// Basic Events
 addBtn.addEventListener('click', handleAddTodo);
 todoInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') handleAddTodo();
 });
-clearCompletedBtn.addEventListener('click', async () => {
-    if (confirm('Bạn có chắc chắn muốn xóa tất cả công việc đã hoàn thành?')) {
-        alert('Tính năng xóa hàng loạt cần nâng cấp backend hỗ trợ Bulk Delete!');
-    }
-});
 
-// Init
-fetchTodos();
+// Start
+refreshTodos();

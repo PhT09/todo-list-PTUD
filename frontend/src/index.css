@@ -695,5 +695,353 @@ button#add-btn:active {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ═══════════════════════════════════════════
+   Level 6: Tags, Deadlines & Smart Filters
+   ═══════════════════════════════════════════ */
+
+/* ─── Tag Manager ─── */
+.tag-manager {
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.tag-manager-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.tag-manager-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.tag-add-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    border: 1px dashed var(--primary-color);
+    background: transparent;
+    color: var(--primary-color);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+}
+
+.tag-add-btn:hover {
+    background: var(--primary-color);
+    color: white;
+    border-style: solid;
+}
+
+.tag-create-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 8px;
+}
+
+.tag-name-input {
+    flex: 1;
+    min-width: 120px;
+    padding: 6px 10px;
+    border: 1.5px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    outline: none;
+    font-family: 'Outfit', sans-serif;
+    transition: var(--transition);
+}
+
+.tag-name-input:focus {
+    border-color: var(--primary-color);
+}
+
+.color-picker-row {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.color-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.color-dot:hover {
+    transform: scale(1.2);
+}
+
+.color-dot.active {
+    border-color: var(--text-color);
+    transform: scale(1.2);
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.2);
+}
+
+.tag-create-submit {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 8px;
+    background: var(--primary-color);
+    color: white;
+    font-size: 0.8rem;
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+    transition: var(--transition);
+}
+
+.tag-create-submit:hover {
+    background: var(--primary-hover);
+}
+
+.tag-list-manager {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.tag-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    border: 1px solid;
+    transition: var(--transition);
+}
+
+.tag-remove-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.6;
+    display: flex;
+    align-items: center;
+    padding: 0;
+    transition: var(--transition);
+}
+
+.tag-remove-btn:hover {
+    opacity: 1;
+}
+
+.tag-empty {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    font-style: italic;
+}
+
+/* ─── Todo Item: Tags display ─── */
+.todo-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.tag-pill-sm {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+/* ─── Todo Item: Due Date ─── */
+.todo-due {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    color: var(--text-light);
+    margin-top: 4px;
+}
+
+.todo-due.due-overdue {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+/* ─── Title Row with Overdue Badge ─── */
+.todo-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.overdue-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    padding: 2px 8px;
+    border-radius: 10px;
+    animation: pulse-badge 2s infinite;
+    white-space: nowrap;
+}
+
+@keyframes pulse-badge {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* ─── Overdue Item Highlight ─── */
+.todo-item.overdue {
+    border-left: 3px solid #ef4444;
+    background: rgba(239, 68, 68, 0.04);
+}
+
+.todo-item.overdue:hover {
+    border-color: #ef4444;
+}
+
+/* ─── Input Extras Panel ─── */
+.input-extras {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 10px;
+}
+
+.input-date-row,
+.input-tag-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.input-icon {
+    color: var(--text-light);
+    flex-shrink: 0;
+}
+
+.date-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1.5px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-family: 'Outfit', sans-serif;
+    outline: none;
+    transition: var(--transition);
+    background: rgba(255, 255, 255, 0.8);
+    color: var(--text-color);
+}
+
+.date-input:focus {
+    border-color: var(--primary-color);
+}
+
+.clear-date-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-light);
+    font-size: 0.9rem;
+    padding: 4px;
+    transition: var(--transition);
+}
+
+.clear-date-btn:hover {
+    color: #ef4444;
+}
+
+.extras-toggle-btn {
+    padding: 0 12px;
+    border: none;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.6);
+    color: var(--text-light);
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 42px;
+}
+
+.extras-toggle-btn:hover {
+    background: var(--primary-color);
+    color: white;
+}
+
+/* ─── Tag Selector ─── */
+.tag-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.tag-selector.compact {
+    margin-top: 4px;
+}
+
+.tag-select-pill {
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: 1px solid;
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+    transition: var(--transition);
+}
+
+.tag-select-pill:hover {
+    transform: scale(1.05);
+}
+
+/* ─── Edit Extras ─── */
+.edit-extras {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+/* ─── Smart Filter Buttons ─── */
+.filter-btn.overdue-filter.active {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.filter-btn.today-filter.active {
+    background: #dbeafe;
+    color: #2563eb;
 }

@@ -1,11 +1,14 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, and_, func
 from fastapi import Depends
+from datetime import datetime, date
 
 from ..models.todo import Todo
+from ..models.tag import Tag
 from ..schemas.todo import TodoCreate, TodoUpdate
 from ..core.database import get_db
+
 
 class TodoRepository:
     def __init__(self, db: Session):
@@ -18,7 +21,8 @@ class TodoRepository:
         limit: int = 10,
         q: Optional[str] = None,
         is_done: Optional[bool] = None,
-        sort_desc: bool = True
+        sort_desc: bool = True,
+        tag_id: Optional[int] = None,
     ) -> tuple[List[Todo], int]:
         
         # Always filter by owner
@@ -30,6 +34,9 @@ class TodoRepository:
         if q:
             query = query.filter(Todo.title.ilike(f"%{q}%"))
 
+        if tag_id is not None:
+            query = query.filter(Todo.tags.any(Tag.id == tag_id))
+
         # Sort
         if sort_desc:
             query = query.order_by(desc(Todo.created_at))
@@ -37,11 +44,27 @@ class TodoRepository:
             query = query.order_by(Todo.created_at)
 
         total = query.count()
-        
-        # Paginate (DB Level)
         items = query.offset(skip).limit(limit).all()
 
         return items, total
+
+    def get_overdue(self, owner_id: int) -> List[Todo]:
+        """Tasks past their due_date and NOT completed."""
+        now = datetime.utcnow()
+        return self.db.query(Todo).filter(
+            Todo.owner_id == owner_id,
+            Todo.is_done == False,
+            Todo.due_date != None,
+            Todo.due_date < now,
+        ).order_by(Todo.due_date).all()
+
+    def get_today(self, owner_id: int) -> List[Todo]:
+        """Tasks due today (any time within the calendar day)."""
+        today = date.today()
+        return self.db.query(Todo).filter(
+            Todo.owner_id == owner_id,
+            func.date(Todo.due_date) == today,
+        ).order_by(Todo.due_date).all()
 
     def get_by_id(self, todo_id: int, owner_id: int) -> Optional[Todo]:
         return self.db.query(Todo).filter(
@@ -49,26 +72,32 @@ class TodoRepository:
             Todo.owner_id == owner_id
         ).first()
 
-    def create(self, todo_data: TodoCreate, owner_id: int) -> Todo:
+    def create(self, todo_data: TodoCreate, owner_id: int, tags: List[Tag] = None) -> Todo:
         new_todo = Todo(
             title=todo_data.title,
             description=todo_data.description,
             is_done=todo_data.is_done,
+            due_date=todo_data.due_date,
             owner_id=owner_id,
         )
+        if tags:
+            new_todo.tags = tags
         self.db.add(new_todo)
         self.db.commit()
         self.db.refresh(new_todo)
         return new_todo
 
-    def update(self, todo_id: int, todo_update: TodoUpdate, owner_id: int) -> Optional[Todo]:
+    def update(self, todo_id: int, todo_update: TodoUpdate, owner_id: int, tags: List[Tag] = None) -> Optional[Todo]:
         db_todo = self.get_by_id(todo_id, owner_id)
         if not db_todo:
             return None
         
-        update_data = todo_update.model_dump(exclude_unset=True)
+        update_data = todo_update.model_dump(exclude_unset=True, exclude={"tag_ids"})
         for key, value in update_data.items():
             setattr(db_todo, key, value)
+        
+        if tags is not None:
+            db_todo.tags = tags
         
         self.db.commit()
         self.db.refresh(db_todo)
@@ -91,6 +120,7 @@ class TodoRepository:
         ).delete()
         self.db.commit()
         return count
+
 
 # Dependency Injection Helper
 def get_todo_repo(db: Session = Depends(get_db)) -> TodoRepository:

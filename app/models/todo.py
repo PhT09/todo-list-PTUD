@@ -1,6 +1,8 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
 from datetime import datetime
 from ..core.database import Base
+from .tag import todo_tags
 
 
 class Todo(Base):
@@ -16,3 +18,9 @@ class Todo(Base):
 
     # Level 5: Data Ownership
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    # Level 6: Deadline
+    due_date = Column(DateTime, nullable=True)
+
+    # Level 6: Tags (Many-to-Many)
+    tags = relationship("Tag", secondary=todo_tags, back_populates="todos", lazy="joined")

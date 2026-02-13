@@ -1,7 +1,7 @@
 
 import TodoItem from './TodoItem';
 
-const TodoList = ({ todos, onToggle, onDelete, onUpdate }) => {
+const TodoList = ({ todos, onToggle, onDelete, onUpdate, availableTags = [] }) => {
     if (todos.length === 0) {
         return (
             <ul className="todo-list">
@@ -21,6 +21,7 @@ const TodoList = ({ todos, onToggle, onDelete, onUpdate }) => {
                     onToggle={onToggle}
                     onDelete={onDelete}
                     onUpdate={onUpdate}
+                    availableTags={availableTags}
                 />
             ))}
         </ul>

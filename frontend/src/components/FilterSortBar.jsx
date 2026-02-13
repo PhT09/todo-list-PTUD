@@ -12,8 +12,6 @@ const FilterSortBar = ({ currentFilter, onFilterChange, searchTerm, onSearchChan
                     value={searchTerm}
                     onChange={(e) => onSearchChange(e.target.value)}
                 />
-                {/* Simple visual icon integration via CSS or custom style if needed,
-            for now just input as requested */}
             </div>
 
             {/* Filter Tabs */}
@@ -35,6 +33,18 @@ const FilterSortBar = ({ currentFilter, onFilterChange, searchTerm, onSearchChan
                     onClick={() => onFilterChange('completed')}
                 >
                     Đã xong
+                </button>
+                <button
+                    className={`filter-btn overdue-filter ${currentFilter === 'overdue' ? 'active' : ''}`}
+                    onClick={() => onFilterChange('overdue')}
+                >
+                    🔴 Trễ hạn
+                </button>
+                <button
+                    className={`filter-btn today-filter ${currentFilter === 'today' ? 'active' : ''}`}
+                    onClick={() => onFilterChange('today')}
+                >
+                    📅 Hôm nay
                 </button>
             </div>
 

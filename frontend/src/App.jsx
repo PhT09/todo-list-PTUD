@@ -7,6 +7,7 @@ import TodoList from './components/TodoList'
 import PaginationBar from './components/PaginationBar'
 import LoginForm from './components/LoginForm'
 import RegisterForm from './components/RegisterForm'
+import TagManager from './components/TagManager'
 import { todoApi } from './api/todoApi'
 import './index.css'
 
@@ -24,6 +25,16 @@ function TodoApp() {
     const [currentFilter, setCurrentFilter] = useState('all')
     const [sortOrder, setSortOrder] = useState('desc')
 
+    // Level 6: Tags state
+    const [availableTags, setAvailableTags] = useState([]);
+
+    // Fetch tags on mount
+    useEffect(() => {
+        todoApi.getTags()
+            .then((res) => setAvailableTags(res.data))
+            .catch((err) => console.error("Failed to fetch tags:", err));
+    }, []);
+
     // Debounce Search
     const [debouncedSearch, setDebouncedSearch] = useState('')
     useEffect(() => {
@@ -37,6 +48,20 @@ function TodoApp() {
     // Data Fetching
     const fetchTodos = async () => {
         try {
+            // Level 6: Smart filters (overdue / today) use dedicated endpoints
+            if (currentFilter === 'overdue') {
+                const res = await todoApi.getOverdue();
+                setTodos(res.data);
+                setTotalItems(res.data.length);
+                return;
+            }
+            if (currentFilter === 'today') {
+                const res = await todoApi.getToday();
+                setTodos(res.data);
+                setTotalItems(res.data.length);
+                return;
+            }
+
             const offset = (currentPage - 1) * itemsPerPage
             const isDesc = sortOrder === 'desc'
 
@@ -56,7 +81,6 @@ function TodoApp() {
             setTotalItems(res.data.total)
         } catch (err) {
             console.error("Failed to fetch todos:", err)
-            // If 401, token expired -> logout
             if (err.response?.status === 401) {
                 logout();
             }
@@ -75,7 +99,7 @@ function TodoApp() {
 
             const isFirstPage = currentPage === 1;
             const isDesc = sortOrder === 'desc';
-            const matchesFilter = currentFilter !== 'completed';
+            const matchesFilter = currentFilter !== 'completed' && currentFilter !== 'overdue' && currentFilter !== 'today';
 
             if (isFirstPage && isDesc && matchesFilter) {
                 setTodos(prev => [newTodo, ...prev].slice(0, itemsPerPage));
@@ -124,7 +148,9 @@ function TodoApp() {
         const oldTodos = [...todos];
         setTodos(prev => prev.map(t => t.id === id ? { ...t, ...data } : t));
         try {
-            await todoApi.update(id, data);
+            const res = await todoApi.update(id, data);
+            // Re-sync with server data (includes enriched tags, is_overdue)
+            setTodos(prev => prev.map(t => t.id === id ? res.data : t));
         } catch (err) {
             setTodos(oldTodos);
             alert("Lỗi cập nhật nội dung");
@@ -133,16 +159,16 @@ function TodoApp() {
 
     const handleClearCompleted = async () => {
         if (!confirm("Bạn có chắc muốn xóa tất cả công việc đã hoàn thành?")) return;
-
         try {
             await todoApi.deleteCompleted();
-            // Refresh list to sync pagination and counts correctly
             fetchTodos();
             setCurrentPage(1);
         } catch (err) {
             alert("Lỗi khi xóa: " + (err.response?.data?.detail || "Không thể thực hiện hành động này"));
         }
     }
+
+    const showPagination = currentFilter !== 'overdue' && currentFilter !== 'today';
 
     return (
         <div className="container">
@@ -154,7 +180,10 @@ function TodoApp() {
                 <button className="logout-btn" onClick={logout}>Đăng Xuất</button>
             </div>
 
-            <TodoInput onAdd={handleAdd} />
+            {/* Level 6: Tag Manager */}
+            <TagManager tags={availableTags} onTagsChange={setAvailableTags} />
+
+            <TodoInput onAdd={handleAdd} availableTags={availableTags} />
 
             <FilterSortBar
                 currentFilter={currentFilter}
@@ -170,6 +199,7 @@ function TodoApp() {
                 onToggle={handleToggle}
                 onDelete={handleDelete}
                 onUpdate={handleUpdateContent}
+                availableTags={availableTags}
             />
 
             <div className="status-bar">
@@ -179,12 +209,14 @@ function TodoApp() {
                 </button>
             </div>
 
-            <PaginationBar
-                currentPage={currentPage}
-                totalItems={totalItems}
-                itemsPerPage={itemsPerPage}
-                onPageChange={setCurrentPage}
-            />
+            {showPagination && (
+                <PaginationBar
+                    currentPage={currentPage}
+                    totalItems={totalItems}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                />
+            )}
         </div>
     )
 }

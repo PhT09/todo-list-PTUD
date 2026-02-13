@@ -22,11 +22,12 @@ class TodoUpdate(BaseModel):
     description: Optional[str] = None
     is_done: Optional[bool] = None
 
-# Response Model (Output)
+# Response Model (Output) — Level 5: includes owner_id
 class Todo(TodoBase):
     id: int
     created_at: datetime
-    updated_at: datetime
+    updated_at: Optional[datetime] = None
+    owner_id: int
 
     model_config = ConfigDict(from_attributes=True)
 

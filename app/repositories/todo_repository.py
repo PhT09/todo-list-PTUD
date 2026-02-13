@@ -13,6 +13,7 @@ class TodoRepository:
 
     def get_all(
         self,
+        owner_id: int,
         skip: int = 0,
         limit: int = 10,
         q: Optional[str] = None,
@@ -20,15 +21,13 @@ class TodoRepository:
         sort_desc: bool = True
     ) -> tuple[List[Todo], int]:
         
-        query = self.db.query(Todo)
+        # Always filter by owner
+        query = self.db.query(Todo).filter(Todo.owner_id == owner_id)
 
         if is_done is not None:
             query = query.filter(Todo.is_done == is_done)
         
         if q:
-            # SQLite ilike support via like in older versions, but ilike is generally supported via SQLAlchemy dialect
-            # For pure SQLite, we can use like for case-insensitive if configured, but let's assume simple like or func.lower
-            # SQLAlchemy ilike compiles to `lower(a) LIKE lower(b)` usually.
             query = query.filter(Todo.title.ilike(f"%{q}%"))
 
         # Sort
@@ -44,26 +43,29 @@ class TodoRepository:
 
         return items, total
 
-    def get_by_id(self, todo_id: int) -> Optional[Todo]:
-        return self.db.query(Todo).filter(Todo.id == todo_id).first()
+    def get_by_id(self, todo_id: int, owner_id: int) -> Optional[Todo]:
+        return self.db.query(Todo).filter(
+            Todo.id == todo_id,
+            Todo.owner_id == owner_id
+        ).first()
 
-    def create(self, todo_data: TodoCreate) -> Todo:
+    def create(self, todo_data: TodoCreate, owner_id: int) -> Todo:
         new_todo = Todo(
             title=todo_data.title,
             description=todo_data.description,
-            is_done=todo_data.is_done
+            is_done=todo_data.is_done,
+            owner_id=owner_id,
         )
         self.db.add(new_todo)
         self.db.commit()
         self.db.refresh(new_todo)
         return new_todo
 
-    def update(self, todo_id: int, todo_update: TodoUpdate) -> Optional[Todo]:
-        db_todo = self.get_by_id(todo_id)
+    def update(self, todo_id: int, todo_update: TodoUpdate, owner_id: int) -> Optional[Todo]:
+        db_todo = self.get_by_id(todo_id, owner_id)
         if not db_todo:
             return None
         
-        # Only update fields that are set (exclude_unset=True)
         update_data = todo_update.model_dump(exclude_unset=True)
         for key, value in update_data.items():
             setattr(db_todo, key, value)
@@ -72,14 +74,23 @@ class TodoRepository:
         self.db.refresh(db_todo)
         return db_todo
 
-    def delete(self, todo_id: int) -> bool:
-        db_todo = self.get_by_id(todo_id)
+    def delete(self, todo_id: int, owner_id: int) -> bool:
+        db_todo = self.get_by_id(todo_id, owner_id)
         if not db_todo:
             return False
         
         self.db.delete(db_todo)
         self.db.commit()
         return True
+
+    def delete_completed(self, owner_id: int) -> int:
+        """Delete all completed todos for the owner. Returns count of deleted items."""
+        count = self.db.query(Todo).filter(
+            Todo.owner_id == owner_id,
+            Todo.is_done == True
+        ).delete()
+        self.db.commit()
+        return count
 
 # Dependency Injection Helper
 def get_todo_repo(db: Session = Depends(get_db)) -> TodoRepository:

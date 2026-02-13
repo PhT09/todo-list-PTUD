@@ -1,29 +1,35 @@
-
 import { useState, useEffect } from 'react'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import Header from './components/Header'
 import TodoInput from './components/TodoInput'
 import FilterSortBar from './components/FilterSortBar'
 import TodoList from './components/TodoList'
 import PaginationBar from './components/PaginationBar'
+import LoginForm from './components/LoginForm'
+import RegisterForm from './components/RegisterForm'
 import { todoApi } from './api/todoApi'
 import './index.css'
 
-function App() {
+// ────────────────────────────────────────────
+// Main Todo App (shown when authenticated)
+// ────────────────────────────────────────────
+function TodoApp() {
+    const { user, logout } = useAuth();
     const [todos, setTodos] = useState([])
     const [totalItems, setTotalItems] = useState(0)
     const [currentPage, setCurrentPage] = useState(1)
     const itemsPerPage = 5
 
     const [searchTerm, setSearchTerm] = useState('')
-    const [currentFilter, setCurrentFilter] = useState('all') // 'all', 'active', 'completed'
-    const [sortOrder, setSortOrder] = useState('desc') // 'desc', 'asc'
+    const [currentFilter, setCurrentFilter] = useState('all')
+    const [sortOrder, setSortOrder] = useState('desc')
 
     // Debounce Search
     const [debouncedSearch, setDebouncedSearch] = useState('')
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedSearch(searchTerm);
-            setCurrentPage(1); // Reset page on search
+            setCurrentPage(1);
         }, 300)
         return () => clearTimeout(timer)
     }, [searchTerm])
@@ -34,12 +40,10 @@ function App() {
             const offset = (currentPage - 1) * itemsPerPage
             const isDesc = sortOrder === 'desc'
 
-            // Determine is_done filter
             let is_done = undefined
             if (currentFilter === 'active') is_done = false
             if (currentFilter === 'completed') is_done = true
 
-            // API Call is proxied to backend
             const res = await todoApi.getAll({
                 limit: itemsPerPage,
                 offset: offset,
@@ -52,22 +56,23 @@ function App() {
             setTotalItems(res.data.total)
         } catch (err) {
             console.error("Failed to fetch todos:", err)
+            // If 401, token expired -> logout
+            if (err.response?.status === 401) {
+                logout();
+            }
         }
     }
 
-    // Trigger fetch on dependency change
     useEffect(() => {
         fetchTodos()
     }, [currentPage, debouncedSearch, currentFilter, sortOrder])
 
     // --- Handlers ---
-
     const handleAdd = async (newTodoData) => {
         try {
             const res = await todoApi.create({ ...newTodoData, is_done: false })
             const newTodo = res.data;
 
-            // Intelligent UI Update (Simulate Optimistic)
             const isFirstPage = currentPage === 1;
             const isDesc = sortOrder === 'desc';
             const matchesFilter = currentFilter !== 'completed';
@@ -76,7 +81,6 @@ function App() {
                 setTodos(prev => [newTodo, ...prev].slice(0, itemsPerPage));
                 setTotalItems(prev => prev + 1);
             } else {
-                // Refresh to sync pagination properly
                 fetchTodos();
             }
         } catch (err) {
@@ -85,47 +89,31 @@ function App() {
     }
 
     const handleToggle = async (id, newStatus) => {
-        // 1. Optimistic Update
         const oldTodos = [...todos];
         setTodos(prev => prev.map(t => t.id === id ? { ...t, is_done: newStatus } : t));
-
         try {
-            // 2. API Call
             await todoApi.update(id, { is_done: newStatus });
-
-            // 3. Post-Sync (Check Filters)
             if (currentFilter !== 'all') {
-                // If filtered, item might need to disappear. 
-                // Re-fetch is safest for pagination accuracy.
                 fetchTodos();
             }
         } catch (err) {
-            // 4. Rollback on Error
             setTodos(oldTodos);
             alert("Lỗi cập nhật trạng thái");
         }
     }
 
     const handleDelete = async (id) => {
-        // 1. Optimistic
         const oldTodos = [...todos];
         setTodos(prev => prev.filter(t => t.id !== id));
         setTotalItems(prev => Math.max(0, prev - 1));
-
         try {
-            // 2. API Call
             await todoApi.delete(id);
-
-            // 3. Post-Sync Pagination
             if (todos.length <= 1 && currentPage > 1) {
-                // Page became empty -> Go back
                 setCurrentPage(prev => prev - 1);
             } else if (todos.length <= itemsPerPage) {
-                // Slot opened up -> Fetch to fill it?
                 fetchTodos();
             }
         } catch (err) {
-            // 4. Rollback
             setTodos(oldTodos);
             setTotalItems(prev => prev + 1);
             alert("Lỗi xóa công việc");
@@ -133,23 +121,38 @@ function App() {
     }
 
     const handleUpdateContent = async (id, data) => {
-        // 1. Optimistic
         const oldTodos = [...todos];
         setTodos(prev => prev.map(t => t.id === id ? { ...t, ...data } : t));
-
         try {
-            // 2. API Call
             await todoApi.update(id, data);
         } catch (err) {
-            // 3. Rollback
             setTodos(oldTodos);
             alert("Lỗi cập nhật nội dung");
+        }
+    }
+
+    const handleClearCompleted = async () => {
+        if (!confirm("Bạn có chắc muốn xóa tất cả công việc đã hoàn thành?")) return;
+
+        try {
+            await todoApi.deleteCompleted();
+            // Refresh list to sync pagination and counts correctly
+            fetchTodos();
+            setCurrentPage(1);
+        } catch (err) {
+            alert("Lỗi khi xóa: " + (err.response?.data?.detail || "Không thể thực hiện hành động này"));
         }
     }
 
     return (
         <div className="container">
             <Header />
+
+            {/* User Info Bar */}
+            <div className="user-bar">
+                <span>👤 {user?.email}</span>
+                <button className="logout-btn" onClick={logout}>Đăng Xuất</button>
+            </div>
 
             <TodoInput onAdd={handleAdd} />
 
@@ -171,7 +174,7 @@ function App() {
 
             <div className="status-bar">
                 <span id="items-left">{totalItems} công việc tìm thấy</span>
-                <button id="clear-completed" onClick={() => alert("Tính năng xóa hàng loạt cần Backend hỗ trợ")}>
+                <button id="clear-completed" onClick={handleClearCompleted}>
                     Xóa đã xong
                 </button>
             </div>
@@ -184,6 +187,52 @@ function App() {
             />
         </div>
     )
+}
+
+// ────────────────────────────────────────────
+// Auth Page (Login / Register)
+// ────────────────────────────────────────────
+function AuthPage() {
+    const [isLogin, setIsLogin] = useState(true);
+
+    return (
+        <div className="auth-container">
+            <div className="auth-header">
+                <h1>📝 Todo App</h1>
+                <p>Quản lý công việc hiệu quả</p>
+            </div>
+            {isLogin
+                ? <LoginForm onSwitch={() => setIsLogin(false)} />
+                : <RegisterForm onSwitch={() => setIsLogin(true)} />
+            }
+        </div>
+    );
+}
+
+// ────────────────────────────────────────────
+// Root App (decides Auth vs Todo)
+// ────────────────────────────────────────────
+function AppContent() {
+    const { token, isLoading } = useAuth();
+
+    if (isLoading) {
+        return (
+            <div className="loading-screen">
+                <div className="spinner"></div>
+                <p>Đang tải...</p>
+            </div>
+        );
+    }
+
+    return token ? <TodoApp /> : <AuthPage />;
+}
+
+function App() {
+    return (
+        <AuthProvider>
+            <AppContent />
+        </AuthProvider>
+    );
 }
 
 export default App

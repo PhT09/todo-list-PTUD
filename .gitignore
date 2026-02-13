@@ -1,33 +1,24 @@
-
 # Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Environment
-.env
+*.py[cod]
+*$py.class
+.venv
+env/
 venv/
-.venv/
-
-# Database
 *.db
-*.sqlite3
+
+# Environment variables
+.env
+.env.local
+
+# Frontend (Node.js)
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/build/
+*.log
 
 # IDE
 .vscode/
 .idea/
-
-# Frontend / Node.js
-node_modules/
-dist/
-build/
-coverage/
-.DS_Store
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.vite/
-frontend/.vite/
-frontend/dist/
-frontend/node_modules/
+*.DS_Store

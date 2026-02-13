@@ -1,67 +1,90 @@
-from fastapi import APIRouter, Depends, Query, HTTPException, status
-from sqlalchemy.orm import Session
-from app.core.database import get_db
-from app.schemas.todo import TodoCreate, TodoUpdate, TodoResponse
-from app.repositories.todo_repository import TodoRepository
-from app.api.deps import get_current_user
-from app.models.user import User
+from fastapi import APIRouter, Depends, Query, Path, HTTPException
+from typing import Optional
+from ..schemas.todo import TodoCreate, TodoUpdate, Todo, PaginatedResponse
+from ..services.todo_service import TodoService, get_todo_service
+from ..api.deps import get_current_user
+from ..models.user import User
 
-router = APIRouter(prefix="/todos", tags=["todos"])
+router = APIRouter()
 
-def get_todo_repo(db: Session = Depends(get_db)):
-    return TodoRepository(db)
+# ─── All endpoints require authentication ───
 
-@router.get("/", response_model=dict)
+
+@router.get("/todos", response_model=PaginatedResponse)
 def read_todos(
-    limit: int = 10,
-    offset: int = 0,
-    q: str = None,
-    is_done: bool = None,
+    skip: int = Query(0, ge=0, alias="offset"),
+    limit: int = Query(10, ge=1, le=100),
+    q: Optional[str] = None,
+    is_done: Optional[bool] = None,
     sort_desc: bool = True,
-    repo: TodoRepository = Depends(get_todo_repo),
-    current_user: User = Depends(get_current_user)
+    service: TodoService = Depends(get_todo_service),
+    current_user: User = Depends(get_current_user),
 ):
-    todos = repo.get_todos(limit, offset, q, is_done, sort_desc, owner_id=current_user.id)
-    count = repo.count_todos(q, is_done, owner_id=current_user.id)
-    return {
-        "items": todos,
-        "total": count,
-        "limit": limit,
-        "offset": offset
-    }
+    return service.get_todos(current_user.id, skip, limit, q, is_done, sort_desc)
 
-@router.post("/", response_model=TodoResponse)
+
+@router.post("/todos", response_model=Todo, status_code=201)
 def create_todo(
     todo: TodoCreate,
-    repo: TodoRepository = Depends(get_todo_repo),
-    current_user: User = Depends(get_current_user)
+    service: TodoService = Depends(get_todo_service),
+    current_user: User = Depends(get_current_user),
 ):
-    return repo.create_todo(todo, owner_id=current_user.id)
+    return service.create_todo(todo, current_user.id)
 
-@router.patch("/{todo_id}", response_model=TodoResponse)
+
+@router.get("/todos/{todo_id}", response_model=Todo)
+def read_todo(
+    todo_id: int = Path(..., title="The ID of the todo to get"),
+    service: TodoService = Depends(get_todo_service),
+    current_user: User = Depends(get_current_user),
+):
+    return service.get_todo(todo_id, current_user.id)
+
+
+@router.put("/todos/{todo_id}", response_model=Todo)
 def update_todo(
     todo_id: int,
-    updates: TodoUpdate,
-    repo: TodoRepository = Depends(get_todo_repo),
-    current_user: User = Depends(get_current_user)
+    todo: TodoCreate,
+    service: TodoService = Depends(get_todo_service),
+    current_user: User = Depends(get_current_user),
 ):
-    todo = repo.update_todo(todo_id, updates, owner_id=current_user.id)
-    if not todo:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Todo not found or not owned by user"
-        )
-    return todo
+    return service.update_todo(todo_id, todo, current_user.id)
 
-@router.delete("/{todo_id}", status_code=status.HTTP_204_NO_CONTENT)
+
+@router.patch("/todos/{todo_id}", response_model=Todo)
+def patch_todo(
+    todo_id: int,
+    todo: TodoUpdate,
+    service: TodoService = Depends(get_todo_service),
+    current_user: User = Depends(get_current_user),
+):
+    return service.update_todo(todo_id, todo, current_user.id)
+
+
+@router.post("/todos/{todo_id}/complete", response_model=Todo)
+def complete_todo(
+    todo_id: int,
+    service: TodoService = Depends(get_todo_service),
+    current_user: User = Depends(get_current_user),
+):
+    return service.complete_todo(todo_id, current_user.id)
+
+
+
+
+
+@router.delete("/todos/completed")
+def delete_completed_todos(
+    service: TodoService = Depends(get_todo_service),
+    current_user: User = Depends(get_current_user),
+):
+    return service.delete_completed_todos(current_user.id)
+
+
+@router.delete("/todos/{todo_id}")
 def delete_todo(
     todo_id: int,
-    repo: TodoRepository = Depends(get_todo_repo),
-    current_user: User = Depends(get_current_user)
+    service: TodoService = Depends(get_todo_service),
+    current_user: User = Depends(get_current_user),
 ):
-    success = repo.delete_todo(todo_id, owner_id=current_user.id)
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Todo not found or not owned by user"
-        )
+    return service.delete_todo(todo_id, current_user.id)

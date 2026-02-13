@@ -1,41 +1,48 @@
+import { createContext, useState, useEffect, useContext } from "react";
+import { todoApi } from "../api/todoApi";
 
-import { createContext, useState, useEffect } from "react";
-import axios from "axios";
+const AuthContext = createContext(null);
 
-export const AuthContext = createContext();
-
-export const AuthProvider = ({ children }) => {
-    const [token, setToken] = useState(localStorage.getItem("token"));
+export function AuthProvider({ children }) {
+    const [token, setToken] = useState(() => localStorage.getItem("token"));
     const [user, setUser] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // Set token to axios defaults
+    // Sync token to localStorage & Axios header
     useEffect(() => {
         if (token) {
             localStorage.setItem("token", token);
-            axios.defaults.headers.common["Authorization"] = "Bearer " + token;
-            // Fetch User ???
+            todoApi.setAuthToken(token);
+            // Fetch user profile
+            todoApi.getMe()
+                .then((res) => setUser(res.data))
+                .catch(() => { setToken(null); setUser(null); })
+                .finally(() => setIsLoading(false));
         } else {
             localStorage.removeItem("token");
-            delete axios.defaults.headers.common["Authorization"];
+            todoApi.setAuthToken(null);
             setUser(null);
+            setIsLoading(false);
         }
     }, [token]);
 
     const login = async (email, password) => {
-        const formData = new FormData();
-        formData.append("username", email);
-        formData.append("password", password);
+        // OAuth2 requires x-www-form-urlencoded with 'username' field
+        const params = new URLSearchParams();
+        params.append("username", email);
+        params.append("password", password);
 
-        try {
-            const res = await axios.post("/api/v1/auth/login", formData);
-            setToken(res.data.access_token);
-        } catch (err) {
-            throw err;
-        }
+        const res = await todoApi.login(params);
+        const newToken = res.data.access_token;
+
+        // Critical Fix: Set header IMMEDIATELY before React re-renders children
+        todoApi.setAuthToken(newToken);
+        localStorage.setItem("token", newToken);
+        setToken(newToken);
     };
 
     const register = async (email, password) => {
-        await axios.post("/api/v1/auth/register", { email, password });
+        await todoApi.register({ email, password });
     };
 
     const logout = () => {
@@ -43,8 +50,14 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ token, login, register, logout, user }}>
+        <AuthContext.Provider value={{ token, user, isLoading, login, register, logout }}>
             {children}
         </AuthContext.Provider>
     );
-};
+}
+
+export function useAuth() {
+    const context = useContext(AuthContext);
+    if (!context) throw new Error("useAuth must be used within AuthProvider");
+    return context;
+}

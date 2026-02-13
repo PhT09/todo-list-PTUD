@@ -1,3 +1,4 @@
-from app.core.database import Base
-from app.models.user import User
-from app.models.todo import Todo
+# Import all models here so Alembic can detect them
+from ..core.database import Base
+from .user import User
+from .todo import Todo

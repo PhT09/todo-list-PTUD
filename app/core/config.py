@@ -4,6 +4,8 @@ class Settings(BaseSettings):
     APP_NAME: str = "Todo API"
     DEBUG: bool = True
     API_VERSION: str = "v1"
+    SECRET_KEY: str = "change-me-in-production"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     model_config = SettingsConfigDict(
         env_file=".env",

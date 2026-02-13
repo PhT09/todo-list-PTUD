@@ -1,6 +1,5 @@
-
-import { useState, useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 
 const RegisterForm = ({ onSwitch }) => {
     const [email, setEmail] = useState("");
@@ -8,46 +7,56 @@ const RegisterForm = ({ onSwitch }) => {
     const [confirmPassword, setConfirmPassword] = useState("");
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
-    const { register } = useContext(AuthContext);
+    const [loading, setLoading] = useState(false);
+    const { register } = useAuth();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
+        setSuccess("");
 
         if (password !== confirmPassword) {
-            setError("Mật khẩu không khớp");
+            setError("Mật khẩu xác nhận không khớp");
+            return;
+        }
+        if (password.length < 6) {
+            setError("Mật khẩu phải có ít nhất 6 ký tự");
             return;
         }
 
+        setLoading(true);
         try {
             await register(email, password);
-            setSuccess("Đăng ký thành công! Vui lòng Đăng nhập.");
-            setTimeout(() => onSwitch(), 2000);
+            setSuccess("Đăng ký thành công! Chuyển sang đăng nhập...");
+            setTimeout(() => onSwitch(), 1500);
         } catch (err) {
-            setError(err.response?.data?.detail || "Registration failed");
+            console.error("Register error:", err);
+            const msg = err.response?.data?.detail || "Đăng ký thất bại";
+            setError(msg);
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
-        <div className="container" style={{ maxWidth: "400px", background: "white", padding: "30px" }}>
-            <h2 style={{ textAlign: "center", marginBottom: "20px" }}>Đăng Ký</h2>
-            {error && <p style={{ color: "red", textAlign: "center" }}>{error}</p>}
-            {success && <p style={{ color: "green", textAlign: "center" }}>{success}</p>}
-            <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+        <div className="auth-card">
+            <h2>Đăng Ký</h2>
+            {error && <p className="auth-error">{error}</p>}
+            {success && <p className="auth-success">{success}</p>}
+            <form onSubmit={handleSubmit}>
                 <input
                     type="email"
                     placeholder="Email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    style={{ padding: "10px", borderRadius: "8px", border: "1px solid #ccc" }}
                     required
+                    autoFocus
                 />
                 <input
                     type="password"
-                    placeholder="Mật khẩu (min 6 chars)"
+                    placeholder="Mật khẩu (tối thiểu 6 ký tự)"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    style={{ padding: "10px", borderRadius: "8px", border: "1px solid #ccc" }}
                     required
                 />
                 <input
@@ -55,28 +64,18 @@ const RegisterForm = ({ onSwitch }) => {
                     placeholder="Xác nhận mật khẩu"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    style={{ padding: "10px", borderRadius: "8px", border: "1px solid #ccc" }}
                     required
                 />
-                <button
-                    type="submit"
-                    style={{
-                        padding: "10px",
-                        background: "#6366f1",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "8px",
-                        cursor: "pointer",
-                        fontWeight: "bold"
-                    }}
-                >
-                    Đăng Ký
+                <button type="submit" className="auth-btn" disabled={loading}>
+                    {loading ? "Đang xử lý..." : "Đăng Ký"}
                 </button>
             </form>
-            <p style={{ marginTop: "15px", textAlign: "center", fontSize: "0.9rem" }}>
-                Đã có tài khoản? <span onClick={onSwitch} style={{ color: "#6366f1", cursor: "pointer", fontWeight: "bold" }}>Đăng nhập</span>
+            <p className="auth-switch">
+                Đã có tài khoản?{" "}
+                <span onClick={onSwitch}>Đăng nhập</span>
             </p>
         </div>
     );
 };
+
 export default RegisterForm;

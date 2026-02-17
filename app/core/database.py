@@ -1,6 +1,5 @@
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 # Persistent SQLite database at ./todo_app.db
 SQLALCHEMY_DATABASE_URL = "sqlite:///./todo_app.db"

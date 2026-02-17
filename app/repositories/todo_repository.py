@@ -2,7 +2,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, and_, func
 from fastapi import Depends
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 
 from ..models.todo import Todo
 from ..models.tag import Tag
@@ -25,8 +25,11 @@ class TodoRepository:
         tag_id: Optional[int] = None,
     ) -> tuple[List[Todo], int]:
         
-        # Always filter by owner
-        query = self.db.query(Todo).filter(Todo.owner_id == owner_id)
+        # Always filter by owner and active status (not deleted)
+        query = self.db.query(Todo).filter(
+            Todo.owner_id == owner_id,
+            Todo.deleted_at == None
+        )
 
         if is_done is not None:
             query = query.filter(Todo.is_done == is_done)
@@ -50,12 +53,13 @@ class TodoRepository:
 
     def get_overdue(self, owner_id: int) -> List[Todo]:
         """Tasks past their due_date and NOT completed."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         return self.db.query(Todo).filter(
             Todo.owner_id == owner_id,
             Todo.is_done == False,
             Todo.due_date != None,
             Todo.due_date < now,
+            Todo.deleted_at == None
         ).order_by(Todo.due_date).all()
 
     def get_today(self, owner_id: int) -> List[Todo]:
@@ -64,13 +68,14 @@ class TodoRepository:
         return self.db.query(Todo).filter(
             Todo.owner_id == owner_id,
             func.date(Todo.due_date) == today,
+            Todo.deleted_at == None
         ).order_by(Todo.due_date).all()
 
-    def get_by_id(self, todo_id: int, owner_id: int) -> Optional[Todo]:
-        return self.db.query(Todo).filter(
-            Todo.id == todo_id,
-            Todo.owner_id == owner_id
-        ).first()
+    def get_by_id(self, todo_id: int, owner_id: int, include_deleted: bool = False) -> Optional[Todo]:
+        query = self.db.query(Todo).filter(Todo.id == todo_id, Todo.owner_id == owner_id)
+        if not include_deleted:
+            query = query.filter(Todo.deleted_at == None)
+        return query.first()
 
     def create(self, todo_data: TodoCreate, owner_id: int, tags: List[Tag] = None) -> Todo:
         new_todo = Todo(
@@ -104,7 +109,29 @@ class TodoRepository:
         return db_todo
 
     def delete(self, todo_id: int, owner_id: int) -> bool:
+        """Soft delete a todo."""
         db_todo = self.get_by_id(todo_id, owner_id)
+        if not db_todo:
+            return False
+        
+        db_todo.deleted_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        self.db.commit()
+        return True
+
+    def restore(self, todo_id: int, owner_id: int) -> bool:
+        """Restore a soft-deleted todo."""
+        # Need to fetch even if deleted
+        db_todo = self.get_by_id(todo_id, owner_id, include_deleted=True)
+        if not db_todo or db_todo.deleted_at is None:
+            return False
+        
+        db_todo.deleted_at = None
+        self.db.commit()
+        return True
+
+    def permanent_delete(self, todo_id: int, owner_id: int) -> bool:
+        """Permanently remove a todo."""
+        db_todo = self.get_by_id(todo_id, owner_id, include_deleted=True)
         if not db_todo:
             return False
         
@@ -112,11 +139,19 @@ class TodoRepository:
         self.db.commit()
         return True
 
+    def get_deleted_todos(self, owner_id: int) -> List[Todo]:
+        """Get all soft-deleted todos."""
+        return self.db.query(Todo).filter(
+            Todo.owner_id == owner_id,
+            Todo.deleted_at != None
+        ).order_by(desc(Todo.deleted_at)).all()
+
     def delete_completed(self, owner_id: int) -> int:
         """Delete all completed todos for the owner. Returns count of deleted items."""
         count = self.db.query(Todo).filter(
             Todo.owner_id == owner_id,
-            Todo.is_done == True
+            Todo.is_done == True,
+            Todo.deleted_at == None
         ).delete()
         self.db.commit()
         return count

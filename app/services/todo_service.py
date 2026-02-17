@@ -1,5 +1,5 @@
 from typing import Optional, Union, List
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, Depends
 from ..core.database import get_db
@@ -27,10 +27,11 @@ def _enrich_todo(todo) -> dict:
         "updated_at": todo.updated_at,
         "owner_id": todo.owner_id,
         "tags": todo.tags,
+        "deleted_at": todo.deleted_at,
         "is_overdue": (
             not todo.is_done
             and todo.due_date is not None
-            and todo.due_date < datetime.utcnow()
+            and todo.due_date < datetime.now(timezone.utc).replace(tzinfo=None)
         ),
     }
     return data
@@ -79,7 +80,7 @@ class TodoService:
 
     def create_todo(self, todo: TodoCreate, owner_id: int) -> dict:
         # Validate: due_date must be in the future (after created_at which is ~now)
-        if todo.due_date is not None and _make_naive(todo.due_date) <= datetime.utcnow():
+        if todo.due_date is not None and _make_naive(todo.due_date) <= datetime.now(timezone.utc).replace(tzinfo=None):
             raise HTTPException(
                 status_code=400,
                 detail="Deadline phải sau thời điểm hiện tại"
@@ -134,6 +135,24 @@ class TodoService:
     def get_today_todos(self, owner_id: int) -> List[dict]:
         todos = self.repo.get_today(owner_id)
         return [_enrich_todo(t) for t in todos]
+
+    def get_trash(self, owner_id: int) -> List[dict]:
+        todos = self.repo.get_deleted_todos(owner_id)
+        return [_enrich_todo(t) for t in todos]
+
+    def restore_todo(self, todo_id: int, owner_id: int) -> dict:
+        success = self.repo.restore(todo_id, owner_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Task không tồn tại trong thùng rác")
+        # Fetch restored to prevent error? or just return success message.
+        # Requirement says restore a task. Usually return the task.
+        return self.get_todo(todo_id, owner_id)
+
+    def permanent_delete_todo(self, todo_id: int, owner_id: int):
+        success = self.repo.permanent_delete(todo_id, owner_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Task không tồn tại")
+        return {"message": "Xóa vĩnh viễn thành công"}
 
 
 # Dependency Injection Helper — MUST share a single DB session

@@ -41,7 +41,7 @@ const TodoInput = ({ onAdd, isAdding, availableTags = [] }) => {
                 <div className="input-group">
                     <input
                         type="text"
-                        placeholder="Tiêu đề công việc..."
+                        placeholder="Tiêu đề công việc... (3 đến 100 kí tự)"
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         disabled={isAdding}

@@ -44,6 +44,15 @@ def read_today_todos(
     return service.get_today_todos(current_user.id)
 
 
+@router.get("/todos/trash", response_model=List[TodoResponse])
+def read_trash(
+    service: TodoService = Depends(get_todo_service),
+    current_user: User = Depends(get_current_user),
+):
+    """List soft-deleted tasks (Trash)."""
+    return service.get_trash(current_user.id)
+
+
 @router.post("/todos", response_model=TodoResponse, status_code=201)
 def create_todo(
     todo: TodoCreate,
@@ -106,3 +115,23 @@ def delete_todo(
     current_user: User = Depends(get_current_user),
 ):
     return service.delete_todo(todo_id, current_user.id)
+
+
+@router.post("/todos/{todo_id}/restore", response_model=TodoResponse)
+def restore_todo(
+    todo_id: int,
+    service: TodoService = Depends(get_todo_service),
+    current_user: User = Depends(get_current_user),
+):
+    """Restore a soft-deleted task."""
+    return service.restore_todo(todo_id, current_user.id)
+
+
+@router.delete("/todos/{todo_id}/permanent")
+def permanent_delete_todo(
+    todo_id: int,
+    service: TodoService = Depends(get_todo_service),
+    current_user: User = Depends(get_current_user),
+):
+    """Permanently delete a task."""
+    return service.permanent_delete_todo(todo_id, current_user.id)

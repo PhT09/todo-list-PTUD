@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    container_name: todo-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app # Bind mount for development
+      - todo-data:/data # Data volume for SQLite persistence
+    environment:
+      - SQLALCHEMY_DATABASE_URL=sqlite:///./todo_app.db
+      - SECRET_KEY=${SECRET_KEY}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  todo-data:

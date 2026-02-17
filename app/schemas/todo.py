@@ -34,6 +34,7 @@ class TodoResponse(TodoBase):
     owner_id: int
     tags: List[TagResponse] = []  # Level 6: Embedded tag info
     is_overdue: bool = False  # Level 6: Computed field
+    deleted_at: Optional[datetime] = None  # Level 7: Soft Delete Timestamp
 
     model_config = ConfigDict(from_attributes=True)
 

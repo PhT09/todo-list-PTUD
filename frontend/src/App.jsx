@@ -11,6 +11,8 @@ import TagManager from './components/TagManager'
 import { todoApi } from './api/todoApi'
 import './index.css'
 
+import TrashManager from './components/TrashManager'
+
 // ────────────────────────────────────────────
 // Main Todo App (shown when authenticated)
 // ────────────────────────────────────────────
@@ -24,6 +26,7 @@ function TodoApp() {
     const [searchTerm, setSearchTerm] = useState('')
     const [currentFilter, setCurrentFilter] = useState('all')
     const [sortOrder, setSortOrder] = useState('desc')
+    const [isTrashOpen, setIsTrashOpen] = useState(false)
 
     // Level 6: Tags state
     const [availableTags, setAvailableTags] = useState([]);
@@ -177,7 +180,16 @@ function TodoApp() {
             {/* User Info Bar */}
             <div className="user-bar">
                 <span>👤 {user?.email}</span>
-                <button className="logout-btn" onClick={logout}>Đăng Xuất</button>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                        className="logout-btn"
+                        style={{ color: '#4b5563', borderColor: '#9ca3af' }}
+                        onClick={() => setIsTrashOpen(true)}
+                    >
+                        🗑️ Thùng Rác
+                    </button>
+                    <button className="logout-btn" onClick={logout}>Đăng Xuất</button>
+                </div>
             </div>
 
             {/* Level 6: Tag Manager */}
@@ -217,6 +229,13 @@ function TodoApp() {
                     onPageChange={setCurrentPage}
                 />
             )}
+
+            <TrashManager
+                isOpen={isTrashOpen}
+                onClose={() => setIsTrashOpen(false)}
+                onRestore={() => { fetchTodos(); }}
+                onDeleteForever={() => { }}
+            />
         </div>
     )
 }

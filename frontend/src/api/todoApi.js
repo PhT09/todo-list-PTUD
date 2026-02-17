@@ -42,6 +42,13 @@ export const todoApi = {
 
     getToday: () => apiClient.get('/todos/today'),
 
+    // Level 7: Trash Management
+    getTrash: () => apiClient.get('/todos/trash'),
+
+    restore: (id) => apiClient.post(`/todos/${id}/restore`),
+
+    permanentDelete: (id) => apiClient.delete(`/todos/${id}/permanent`),
+
     // ─── Tags ───
     getTags: () => apiClient.get('/tags/'),
 

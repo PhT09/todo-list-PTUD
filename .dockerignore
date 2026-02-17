@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.db
+.env
+.venv
+venv/
+tests/
+alembic/versions/*.py
+
+# Frontend
+frontend/
+node_modules/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.git/
+.gitignore
+.vscode/
+.idea/

@@ -8,11 +8,18 @@ const FilterSortBar = ({ currentFilter, onFilterChange, searchTerm, onSearchChan
             <div className="search-group" style={{ flex: 1, position: 'relative' }}>
                 <input
                     type="text"
+                    style={{ width: '100%' }}
                     placeholder="Tìm kiếm công việc..."
                     value={searchTerm}
                     onChange={(e) => onSearchChange(e.target.value)}
                 />
             </div>
+
+            {/* Sort Select */}
+            <select id="sort-order" value={sortOrder} onChange={(e) => onSortChange(e.target.value)}>
+                <option value="desc">Mới nhất</option>
+                <option value="asc">Cũ nhất</option>
+            </select>
 
             {/* Filter Tabs */}
             <div className="filter-tabs">
@@ -38,21 +45,15 @@ const FilterSortBar = ({ currentFilter, onFilterChange, searchTerm, onSearchChan
                     className={`filter-btn overdue-filter ${currentFilter === 'overdue' ? 'active' : ''}`}
                     onClick={() => onFilterChange('overdue')}
                 >
-                    🔴 Trễ hạn
+                    Trễ hạn
                 </button>
                 <button
                     className={`filter-btn today-filter ${currentFilter === 'today' ? 'active' : ''}`}
                     onClick={() => onFilterChange('today')}
                 >
-                    📅 Hôm nay
+                    Hôm nay
                 </button>
             </div>
-
-            {/* Sort Select */}
-            <select id="sort-order" value={sortOrder} onChange={(e) => onSortChange(e.target.value)}>
-                <option value="desc">Mới nhất</option>
-                <option value="asc">Cũ nhất</option>
-            </select>
         </div>
     );
 };

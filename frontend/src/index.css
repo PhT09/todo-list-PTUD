@@ -217,7 +217,7 @@ button#add-btn:active {
     flex: 1 1 100%;
     padding: 10px 14px;
     font-size: 0.9rem;
-    min-width: 200px;
+    min-width: 100px;
 }
 
 /* Filter Tabs */

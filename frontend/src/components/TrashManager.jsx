@@ -42,7 +42,7 @@ export default function TrashManager({ isOpen, onClose, onRestore, onDeleteForev
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content trash-modal" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h2>🗑️ Thùng rác</h2>
+                    <h2>Thùng rác {trashItems.length > 0 && `(${trashItems.length})`}</h2>
                     <button className="close-btn" onClick={onClose}>&times;</button>
                 </div>
 

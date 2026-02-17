@@ -27,6 +27,7 @@ function TodoApp() {
     const [currentFilter, setCurrentFilter] = useState('all')
     const [sortOrder, setSortOrder] = useState('desc')
     const [isTrashOpen, setIsTrashOpen] = useState(false)
+    const [trashCount, setTrashCount] = useState(0)
 
     // Level 6: Tags state
     const [availableTags, setAvailableTags] = useState([]);
@@ -36,7 +37,15 @@ function TodoApp() {
         todoApi.getTags()
             .then((res) => setAvailableTags(res.data))
             .catch((err) => console.error("Failed to fetch tags:", err));
+
+        fetchTrashCount();
     }, []);
+
+    const fetchTrashCount = () => {
+        todoApi.getTrash()
+            .then(res => setTrashCount(res.data.length))
+            .catch(err => console.error("Failed to fetch trash count", err));
+    }
 
     // Debounce Search
     const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -135,6 +144,7 @@ function TodoApp() {
         setTotalItems(prev => Math.max(0, prev - 1));
         try {
             await todoApi.delete(id);
+            fetchTrashCount(); // Update trash count
             if (todos.length <= 1 && currentPage > 1) {
                 setCurrentPage(prev => prev - 1);
             } else if (todos.length <= itemsPerPage) {
@@ -174,69 +184,72 @@ function TodoApp() {
     const showPagination = currentFilter !== 'overdue' && currentFilter !== 'today';
 
     return (
-        <div className="container">
-            <Header />
+        <>
+            <div className="container">
+                <Header />
 
-            {/* User Info Bar */}
-            <div className="user-bar">
-                <span>👤 {user?.email}</span>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                    <button
-                        className="logout-btn"
-                        style={{ color: '#4b5563', borderColor: '#9ca3af' }}
-                        onClick={() => setIsTrashOpen(true)}
-                    >
-                        🗑️ Thùng Rác
-                    </button>
-                    <button className="logout-btn" onClick={logout}>Đăng Xuất</button>
+                {/* User Info Bar */}
+                <div className="user-bar">
+                    <span>{user?.email}</span>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <button
+                            className="logout-btn"
+                            style={{ color: '#4b5563', borderColor: '#9ca3af' }}
+                            onClick={() => setIsTrashOpen(true)}
+                        >
+                            Thùng Rác
+                        </button>
+                        <button className="logout-btn" onClick={logout}>Đăng Xuất</button>
+                    </div>
                 </div>
-            </div>
 
-            {/* Level 6: Tag Manager */}
-            <TagManager tags={availableTags} onTagsChange={setAvailableTags} />
+                {/* Level 6: Tag Manager */}
+                <TagManager tags={availableTags} onTagsChange={setAvailableTags} />
 
-            <TodoInput onAdd={handleAdd} availableTags={availableTags} />
+                <TodoInput onAdd={handleAdd} availableTags={availableTags} />
 
-            <FilterSortBar
-                currentFilter={currentFilter}
-                onFilterChange={(filter) => { setCurrentFilter(filter); setCurrentPage(1); }}
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                sortOrder={sortOrder}
-                onSortChange={setSortOrder}
-            />
-
-            <TodoList
-                todos={todos}
-                onToggle={handleToggle}
-                onDelete={handleDelete}
-                onUpdate={handleUpdateContent}
-                availableTags={availableTags}
-            />
-
-            <div className="status-bar">
-                <span id="items-left">{totalItems} công việc tìm thấy</span>
-                <button id="clear-completed" onClick={handleClearCompleted}>
-                    Xóa đã xong
-                </button>
-            </div>
-
-            {showPagination && (
-                <PaginationBar
-                    currentPage={currentPage}
-                    totalItems={totalItems}
-                    itemsPerPage={itemsPerPage}
-                    onPageChange={setCurrentPage}
+                <FilterSortBar
+                    currentFilter={currentFilter}
+                    onFilterChange={(filter) => { setCurrentFilter(filter); setCurrentPage(1); }}
+                    searchTerm={searchTerm}
+                    onSearchChange={setSearchTerm}
+                    sortOrder={sortOrder}
+                    onSortChange={setSortOrder}
                 />
-            )}
+
+                <TodoList
+                    todos={todos}
+                    onToggle={handleToggle}
+                    onDelete={handleDelete}
+                    onUpdate={handleUpdateContent}
+                    availableTags={availableTags}
+                />
+
+                <div className="status-bar">
+                    <span id="items-left">{totalItems} công việc tìm thấy</span>
+                    <button id="clear-completed" onClick={handleClearCompleted}>
+                        Xóa đã xong
+                    </button>
+                </div>
+
+                {showPagination && (
+                    <PaginationBar
+                        currentPage={currentPage}
+                        totalItems={totalItems}
+                        itemsPerPage={itemsPerPage}
+                        onPageChange={setCurrentPage}
+                    />
+                )}
+
+            </div>
 
             <TrashManager
                 isOpen={isTrashOpen}
                 onClose={() => setIsTrashOpen(false)}
-                onRestore={() => { fetchTodos(); }}
-                onDeleteForever={() => { }}
+                onRestore={() => { fetchTodos(); fetchTrashCount(); }}
+                onDeleteForever={() => { fetchTrashCount(); }}
             />
-        </div>
+        </>
     )
 }
 

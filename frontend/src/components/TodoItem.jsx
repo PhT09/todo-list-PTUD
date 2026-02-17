@@ -55,9 +55,7 @@ const TodoItem = ({ todo, onToggle, onDelete, onUpdate, availableTags = [] }) =>
 
     const handleDelete = (e) => {
         e.stopPropagation();
-        if (window.confirm('Bạn có chắc chắn muốn xóa?')) {
-            onDelete(todo.id);
-        }
+        onDelete(todo.id);
     };
 
     const toggleEditTag = (tagId) => {

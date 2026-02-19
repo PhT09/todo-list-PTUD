@@ -5,7 +5,6 @@ from fastapi import Depends
 from datetime import datetime, date, timezone
 
 from ..models.todo import Todo
-from ..models.tag import Tag
 from ..schemas.todo import TodoCreate, TodoUpdate
 from ..core.database import get_db
 
@@ -22,9 +21,9 @@ class TodoRepository:
         q: Optional[str] = None,
         is_done: Optional[bool] = None,
         sort_desc: bool = True,
-        tag_id: Optional[int] = None,
+        priority: Optional[str] = None,
     ) -> tuple[List[Todo], int]:
-        
+
         # Always filter by owner and active status (not deleted)
         query = self.db.query(Todo).filter(
             Todo.owner_id == owner_id,
@@ -33,12 +32,12 @@ class TodoRepository:
 
         if is_done is not None:
             query = query.filter(Todo.is_done == is_done)
-        
+
         if q:
             query = query.filter(Todo.title.ilike(f"%{q}%"))
 
-        if tag_id is not None:
-            query = query.filter(Todo.tags.any(Tag.id == tag_id))
+        if priority is not None:
+            query = query.filter(Todo.priority == priority)
 
         # Sort
         if sort_desc:
@@ -77,33 +76,32 @@ class TodoRepository:
             query = query.filter(Todo.deleted_at == None)
         return query.first()
 
-    def create(self, todo_data: TodoCreate, owner_id: int, tags: List[Tag] = None) -> Todo:
+    def create(self, todo_data: TodoCreate, owner_id: int) -> Todo:
         new_todo = Todo(
             title=todo_data.title,
             description=todo_data.description,
             is_done=todo_data.is_done,
             due_date=todo_data.due_date,
+            priority=todo_data.priority.value if todo_data.priority else "Normal",
             owner_id=owner_id,
         )
-        if tags:
-            new_todo.tags = tags
         self.db.add(new_todo)
         self.db.commit()
         self.db.refresh(new_todo)
         return new_todo
 
-    def update(self, todo_id: int, todo_update: TodoUpdate, owner_id: int, tags: List[Tag] = None) -> Optional[Todo]:
+    def update(self, todo_id: int, todo_update: TodoUpdate, owner_id: int) -> Optional[Todo]:
         db_todo = self.get_by_id(todo_id, owner_id)
         if not db_todo:
             return None
-        
-        update_data = todo_update.model_dump(exclude_unset=True, exclude={"tag_ids"})
+
+        update_data = todo_update.model_dump(exclude_unset=True)
         for key, value in update_data.items():
-            setattr(db_todo, key, value)
-        
-        if tags is not None:
-            db_todo.tags = tags
-        
+            if key == "priority" and value is not None:
+                setattr(db_todo, key, value.value if hasattr(value, 'value') else value)
+            else:
+                setattr(db_todo, key, value)
+
         self.db.commit()
         self.db.refresh(db_todo)
         return db_todo
@@ -113,18 +111,17 @@ class TodoRepository:
         db_todo = self.get_by_id(todo_id, owner_id)
         if not db_todo:
             return False
-        
+
         db_todo.deleted_at = datetime.now(timezone.utc).replace(tzinfo=None)
         self.db.commit()
         return True
 
     def restore(self, todo_id: int, owner_id: int) -> bool:
         """Restore a soft-deleted todo."""
-        # Need to fetch even if deleted
         db_todo = self.get_by_id(todo_id, owner_id, include_deleted=True)
         if not db_todo or db_todo.deleted_at is None:
             return False
-        
+
         db_todo.deleted_at = None
         self.db.commit()
         return True
@@ -134,7 +131,7 @@ class TodoRepository:
         db_todo = self.get_by_id(todo_id, owner_id, include_deleted=True)
         if not db_todo:
             return False
-        
+
         self.db.delete(db_todo)
         self.db.commit()
         return True

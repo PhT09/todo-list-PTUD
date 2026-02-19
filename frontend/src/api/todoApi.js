@@ -8,6 +8,18 @@ const apiClient = axios.create({
     },
 });
 
+export const PRIORITY_OPTIONS = [
+    { value: 'Priority', label: 'Priority', color: '#ef4444' },
+    { value: 'Important', label: 'Important', color: '#f97316' },
+    { value: 'Necessary', label: 'Necessary', color: '#3b82f6' },
+    { value: 'Normal', label: 'Normal', color: '#94a3b8' },
+];
+
+export const getPriorityColor = (priority) => {
+    const opt = PRIORITY_OPTIONS.find(p => p.value === priority);
+    return opt ? opt.color : '#94a3b8';
+};
+
 export const todoApi = {
     // ─── Auth ───
     setAuthToken: (token) => {
@@ -37,24 +49,18 @@ export const todoApi = {
 
     deleteCompleted: () => apiClient.delete('/todos/completed'),
 
-    // Level 6: Smart Endpoints
+    // Smart Endpoints
     getOverdue: () => apiClient.get('/todos/overdue'),
 
     getToday: () => apiClient.get('/todos/today'),
 
-    // Level 7: Trash Management
+    // Trash Management
     getTrash: () => apiClient.get('/todos/trash'),
 
     restore: (id) => apiClient.post(`/todos/${id}/restore`),
 
     permanentDelete: (id) => apiClient.delete(`/todos/${id}/permanent`),
 
-    // ─── Tags ───
-    getTags: () => apiClient.get('/tags/'),
-
-    createTag: (data) => apiClient.post('/tags/', data),
-
-    updateTag: (id, data) => apiClient.put(`/tags/${id}`, data),
-
-    deleteTag: (id) => apiClient.delete(`/tags/${id}`),
+    // ─── Analytics ───
+    getAnalyticsStats: (params) => apiClient.get('/analytics/stats', { params }),
 };

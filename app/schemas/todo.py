@@ -1,20 +1,32 @@
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from typing import Optional, List
-from .tag import TagResponse
+from enum import Enum
+
+
+# ─── Priority Enum (Fixed 4 options) ───
+class PriorityEnum(str, Enum):
+    PRIORITY = "Priority"
+    IMPORTANT = "Important"
+    NECESSARY = "Necessary"
+    NORMAL = "Normal"
+
 
 # Base Model
 class TodoBase(BaseModel):
     model_config = ConfigDict(extra='ignore')
-    
+
     title: str = Field(..., min_length=3, max_length=100)
     description: Optional[str] = None
     is_done: bool = False
-    due_date: Optional[datetime] = None  # Level 6: Deadline
+    due_date: Optional[datetime] = None
+    priority: PriorityEnum = PriorityEnum.NORMAL
+
 
 # Create Model
 class TodoCreate(TodoBase):
-    tag_ids: Optional[List[int]] = None  # Level 6: Assign tags on creation
+    pass
+
 
 # Patch Model (Partial Update)
 class TodoUpdate(BaseModel):
@@ -23,8 +35,9 @@ class TodoUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=3, max_length=100)
     description: Optional[str] = None
     is_done: Optional[bool] = None
-    due_date: Optional[datetime] = None  # Level 6: Update deadline
-    tag_ids: Optional[List[int]] = None  # Level 6: Update tags
+    due_date: Optional[datetime] = None
+    priority: Optional[PriorityEnum] = None
+
 
 # Response Model
 class TodoResponse(TodoBase):
@@ -32,11 +45,13 @@ class TodoResponse(TodoBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     owner_id: int
-    tags: List[TagResponse] = []  # Level 6: Embedded tag info
-    is_overdue: bool = False  # Level 6: Computed field
-    deleted_at: Optional[datetime] = None  # Level 7: Soft Delete Timestamp
+    is_overdue: bool = False
+    deleted_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    productivity_score: Optional[float] = None
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class PaginatedResponse(BaseModel):
     items: List[TodoResponse]

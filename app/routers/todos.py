@@ -17,11 +17,11 @@ def read_todos(
     q: Optional[str] = None,
     is_done: Optional[bool] = None,
     sort_desc: bool = True,
-    tag_id: Optional[int] = None,
+    priority: Optional[str] = None,
     service: TodoService = Depends(get_todo_service),
     current_user: User = Depends(get_current_user),
 ):
-    return service.get_todos(current_user.id, skip, limit, q, is_done, sort_desc, tag_id)
+    return service.get_todos(current_user.id, skip, limit, q, is_done, sort_desc, priority)
 
 
 # ─── Smart Retrieval Endpoints (Level 6) ───

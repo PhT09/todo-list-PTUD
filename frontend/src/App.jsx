@@ -7,7 +7,7 @@ import TodoList from './components/TodoList'
 import PaginationBar from './components/PaginationBar'
 import LoginForm from './components/LoginForm'
 import RegisterForm from './components/RegisterForm'
-import TagManager from './components/TagManager'
+import Dashboard from './components/Dashboard'
 import { todoApi } from './api/todoApi'
 import './index.css'
 
@@ -28,16 +28,9 @@ function TodoApp() {
     const [sortOrder, setSortOrder] = useState('desc')
     const [isTrashOpen, setIsTrashOpen] = useState(false)
     const [trashCount, setTrashCount] = useState(0)
+    const [showDashboard, setShowDashboard] = useState(false)
 
-    // Level 6: Tags state
-    const [availableTags, setAvailableTags] = useState([]);
-
-    // Fetch tags on mount
     useEffect(() => {
-        todoApi.getTags()
-            .then((res) => setAvailableTags(res.data))
-            .catch((err) => console.error("Failed to fetch tags:", err));
-
         fetchTrashCount();
     }, []);
 
@@ -60,7 +53,7 @@ function TodoApp() {
     // Data Fetching
     const fetchTodos = async () => {
         try {
-            // Level 6: Smart filters (overdue / today) use dedicated endpoints
+            // Smart filters (overdue / today) use dedicated endpoints
             if (currentFilter === 'overdue') {
                 const res = await todoApi.getOverdue();
                 setTodos(res.data);
@@ -128,8 +121,17 @@ function TodoApp() {
         const oldTodos = [...todos];
         setTodos(prev => prev.map(t => t.id === id ? { ...t, is_done: newStatus } : t));
         try {
-            await todoApi.update(id, { is_done: newStatus });
-            if (currentFilter !== 'all') {
+            const res = await todoApi.update(id, { is_done: newStatus });
+            // Re-sync with server data (includes productivity_score, completed_at)
+            setTodos(prev => prev.map(t => t.id === id ? res.data : t));
+
+            // If auto-trashed, the item will have deleted_at set — remove from list
+            if (res.data.deleted_at) {
+                setTodos(prev => prev.filter(t => t.id !== id));
+                setTotalItems(prev => Math.max(0, prev - 1));
+                fetchTrashCount();
+                fetchTodos();
+            } else if (currentFilter !== 'all') {
                 fetchTodos();
             }
         } catch (err) {
@@ -144,7 +146,7 @@ function TodoApp() {
         setTotalItems(prev => Math.max(0, prev - 1));
         try {
             await todoApi.delete(id);
-            fetchTrashCount(); // Update trash count
+            fetchTrashCount();
             if (todos.length <= 1 && currentPage > 1) {
                 setCurrentPage(prev => prev - 1);
             } else if (todos.length <= itemsPerPage) {
@@ -162,7 +164,6 @@ function TodoApp() {
         setTodos(prev => prev.map(t => t.id === id ? { ...t, ...data } : t));
         try {
             const res = await todoApi.update(id, data);
-            // Re-sync with server data (includes enriched tags, is_overdue)
             setTodos(prev => prev.map(t => t.id === id ? res.data : t));
         } catch (err) {
             setTodos(oldTodos);
@@ -183,6 +184,15 @@ function TodoApp() {
 
     const showPagination = currentFilter !== 'overdue' && currentFilter !== 'today';
 
+    // ── Dashboard View ──
+    if (showDashboard) {
+        return (
+            <div className="container dashboard-view">
+                <Dashboard onBack={() => setShowDashboard(false)} />
+            </div>
+        );
+    }
+
     return (
         <>
             <div className="container">
@@ -193,20 +203,22 @@ function TodoApp() {
                     <span>{user?.email}</span>
                     <div style={{ display: 'flex', gap: '10px' }}>
                         <button
-                            className="logout-btn"
-                            style={{ color: '#4b5563', borderColor: '#9ca3af' }}
+                            className="nav-btn dashboard-nav-btn"
+                            onClick={() => setShowDashboard(true)}
+                        >
+                            Dashboard
+                        </button>
+                        <button
+                            className="nav-btn trash-nav-btn"
                             onClick={() => setIsTrashOpen(true)}
                         >
-                            Thùng Rác
+                            Thùng Rác {trashCount > 0 && <span className="badge">{trashCount}</span>}
                         </button>
                         <button className="logout-btn" onClick={logout}>Đăng Xuất</button>
                     </div>
                 </div>
 
-                {/* Level 6: Tag Manager */}
-                <TagManager tags={availableTags} onTagsChange={setAvailableTags} />
-
-                <TodoInput onAdd={handleAdd} availableTags={availableTags} />
+                <TodoInput onAdd={handleAdd} />
 
                 <FilterSortBar
                     currentFilter={currentFilter}
@@ -222,7 +234,6 @@ function TodoApp() {
                     onToggle={handleToggle}
                     onDelete={handleDelete}
                     onUpdate={handleUpdateContent}
-                    availableTags={availableTags}
                 />
 
                 <div className="status-bar">

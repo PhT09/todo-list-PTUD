@@ -1,8 +1,7 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Float
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from ..core.database import Base
-from .tag import todo_tags
 
 
 def utc_now():
@@ -29,5 +28,9 @@ class Todo(Base):
     # Level 7: Soft Delete
     deleted_at = Column(DateTime, nullable=True)
 
-    # Level 6: Tags (Many-to-Many)
-    tags = relationship("Tag", secondary=todo_tags, back_populates="todos", lazy="joined")
+    # Analytics: Completion tracking
+    completed_at = Column(DateTime, nullable=True)
+    productivity_score = Column(Float, nullable=True)
+
+    # Priority Tag (fixed enum: Priority, Important, Necessary, Normal)
+    priority = Column(String(20), default="Normal", nullable=False)

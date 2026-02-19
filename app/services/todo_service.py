@@ -5,7 +5,7 @@ from fastapi import HTTPException, Depends
 from ..core.database import get_db
 from ..schemas.todo import TodoCreate, TodoUpdate, TodoResponse, PaginatedResponse
 from ..repositories.todo_repository import TodoRepository
-from ..repositories.tag_repository import TagRepository
+from .productivity_scorer import compute_productivity
 
 
 def _make_naive(dt):
@@ -26,8 +26,10 @@ def _enrich_todo(todo) -> dict:
         "created_at": todo.created_at,
         "updated_at": todo.updated_at,
         "owner_id": todo.owner_id,
-        "tags": todo.tags,
+        "priority": todo.priority,
         "deleted_at": todo.deleted_at,
+        "completed_at": todo.completed_at,
+        "productivity_score": todo.productivity_score,
         "is_overdue": (
             not todo.is_done
             and todo.due_date is not None
@@ -38,18 +40,8 @@ def _enrich_todo(todo) -> dict:
 
 
 class TodoService:
-    def __init__(self, repo: TodoRepository, tag_repo: TagRepository):
+    def __init__(self, repo: TodoRepository):
         self.repo = repo
-        self.tag_repo = tag_repo
-
-    def _resolve_tags(self, tag_ids: Optional[List[int]], owner_id: int):
-        """Resolve tag_ids to Tag ORM objects, filtered by owner."""
-        if tag_ids is None:
-            return None
-        if not tag_ids:
-            return []
-        tags = self.tag_repo.get_by_ids(tag_ids, owner_id)
-        return tags
 
     def get_todos(
         self,
@@ -59,7 +51,7 @@ class TodoService:
         q: Optional[str] = None,
         is_done: Optional[bool] = None,
         sort_desc: bool = True,
-        tag_id: Optional[int] = None,
+        priority: Optional[str] = None,
     ) -> PaginatedResponse:
         items, total = self.repo.get_all(
             owner_id=owner_id,
@@ -68,7 +60,7 @@ class TodoService:
             q=q,
             is_done=is_done,
             sort_desc=sort_desc,
-            tag_id=tag_id,
+            priority=priority,
         )
         enriched = [_enrich_todo(t) for t in items]
         return PaginatedResponse(
@@ -85,8 +77,7 @@ class TodoService:
                 status_code=400,
                 detail="Deadline phải sau thời điểm hiện tại"
             )
-        tags = self._resolve_tags(todo.tag_ids, owner_id)
-        new_todo = self.repo.create(todo, owner_id, tags=tags or [])
+        new_todo = self.repo.create(todo, owner_id)
         return _enrich_todo(new_todo)
 
     def get_todo(self, todo_id: int, owner_id: int) -> dict:
@@ -107,9 +98,60 @@ class TodoService:
                     status_code=400,
                     detail="Deadline phải sau thời điểm tạo công việc"
                 )
-        tag_ids = getattr(todo_update, 'tag_ids', None)
-        tags = self._resolve_tags(tag_ids, owner_id)
-        updated_todo = self.repo.update(todo_id, todo_update, owner_id, tags=tags)
+
+        # Check if task is being marked as done (is_done transitioning to True)
+        is_done_value = getattr(todo_update, 'is_done', None)
+        if is_done_value is True:
+            existing = self.repo.get_by_id(todo_id, owner_id)
+            if not existing:
+                raise HTTPException(status_code=404, detail="Task không tồn tại hoặc không thuộc về bạn")
+
+            if not existing.is_done:
+                # Task is being completed — compute productivity score
+                now = datetime.now(timezone.utc).replace(tzinfo=None)
+                priority = getattr(todo_update, 'priority', None)
+                if priority is not None:
+                    priority_str = priority.value if hasattr(priority, 'value') else priority
+                else:
+                    priority_str = existing.priority or "Normal"
+
+                result = compute_productivity(
+                    created_at=existing.created_at,
+                    due_date=existing.due_date,
+                    completed_at=now,
+                    priority=priority_str,
+                )
+
+                # Set completed_at and score directly on the ORM object
+                existing.completed_at = now
+                existing.productivity_score = result["score"]
+                existing.is_done = True
+
+                if result["should_trash"]:
+                    # Auto-trash: score = 0, move to trash
+                    existing.productivity_score = 0.0
+                    existing.deleted_at = now
+
+                # Apply other fields from update if any
+                update_data = todo_update.model_dump(exclude_unset=True, exclude={"is_done"})
+                for key, value in update_data.items():
+                    if key == "priority" and value is not None:
+                        setattr(existing, key, value.value if hasattr(value, 'value') else value)
+                    else:
+                        setattr(existing, key, value)
+
+                self.repo.db.commit()
+                self.repo.db.refresh(existing)
+                return _enrich_todo(existing)
+
+        # If is_done is being set to False (un-completing), clear completed_at & score
+        if is_done_value is False:
+            existing = self.repo.get_by_id(todo_id, owner_id)
+            if existing and existing.is_done:
+                existing.completed_at = None
+                existing.productivity_score = None
+
+        updated_todo = self.repo.update(todo_id, todo_update, owner_id)
         if not updated_todo:
             raise HTTPException(status_code=404, detail="Task không tồn tại hoặc không thuộc về bạn")
         return _enrich_todo(updated_todo)
@@ -144,8 +186,6 @@ class TodoService:
         success = self.repo.restore(todo_id, owner_id)
         if not success:
             raise HTTPException(status_code=404, detail="Task không tồn tại trong thùng rác")
-        # Fetch restored to prevent error? or just return success message.
-        # Requirement says restore a task. Usually return the task.
         return self.get_todo(todo_id, owner_id)
 
     def permanent_delete_todo(self, todo_id: int, owner_id: int):
@@ -155,8 +195,8 @@ class TodoService:
         return {"message": "Xóa vĩnh viễn thành công"}
 
 
-# Dependency Injection Helper — MUST share a single DB session
+# Dependency Injection Helper — uses single DB session
 def get_todo_service(
     db: Session = Depends(get_db),
 ) -> TodoService:
-    return TodoService(TodoRepository(db), TagRepository(db))
+    return TodoService(TodoRepository(db))

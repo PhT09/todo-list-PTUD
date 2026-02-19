@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { FaPlus, FaCalendarAlt, FaTags } from 'react-icons/fa';
+import { FaPlus, FaCalendarAlt } from 'react-icons/fa';
+import { PRIORITY_OPTIONS } from '../api/todoApi';
 
-const TodoInput = ({ onAdd, isAdding, availableTags = [] }) => {
+const TodoInput = ({ onAdd, isAdding }) => {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [dueDate, setDueDate] = useState('');
-    const [selectedTagIds, setSelectedTagIds] = useState([]);
+    const [priority, setPriority] = useState('Normal');
     const [showExtras, setShowExtras] = useState(false);
 
     const handleSubmit = (e) => {
@@ -16,7 +17,7 @@ const TodoInput = ({ onAdd, isAdding, availableTags = [] }) => {
             title: title.trim(),
             description: description.trim() || null,
             due_date: dueDate ? new Date(dueDate).toISOString() : null,
-            tag_ids: selectedTagIds.length > 0 ? selectedTagIds : null,
+            priority: priority,
         };
 
         onAdd(data);
@@ -25,14 +26,8 @@ const TodoInput = ({ onAdd, isAdding, availableTags = [] }) => {
         setTitle('');
         setDescription('');
         setDueDate('');
-        setSelectedTagIds([]);
+        setPriority('Normal');
         setShowExtras(false);
-    };
-
-    const toggleTag = (tagId) => {
-        setSelectedTagIds((prev) =>
-            prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
-        );
     };
 
     return (
@@ -51,7 +46,7 @@ const TodoInput = ({ onAdd, isAdding, availableTags = [] }) => {
                         type="button"
                         className="extras-toggle-btn"
                         onClick={() => setShowExtras(!showExtras)}
-                        title="Thêm deadline & tags"
+                        title="Thêm deadline & ưu tiên"
                     >
                         <FaCalendarAlt size={14} />
                     </button>
@@ -67,6 +62,29 @@ const TodoInput = ({ onAdd, isAdding, availableTags = [] }) => {
                     onChange={(e) => setDescription(e.target.value)}
                     disabled={isAdding}
                 ></textarea>
+
+                {/* Priority Pill Selector — always visible */}
+                <div className="priority-selector">
+                    <span className="priority-label">Ưu tiên:</span>
+                    <div className="priority-pills">
+                        {PRIORITY_OPTIONS.map((opt) => (
+                            <button
+                                key={opt.value}
+                                type="button"
+                                className={`priority-pill ${priority === opt.value ? 'active' : ''}`}
+                                style={{
+                                    '--pill-color': opt.color,
+                                    background: priority === opt.value ? opt.color : opt.color + '15',
+                                    color: priority === opt.value ? '#fff' : opt.color,
+                                    borderColor: opt.color,
+                                }}
+                                onClick={() => setPriority(opt.value)}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
 
                 {showExtras && (
                     <div className="input-extras">
@@ -86,31 +104,6 @@ const TodoInput = ({ onAdd, isAdding, availableTags = [] }) => {
                                 </button>
                             )}
                         </div>
-
-                        {/* Tag Selector */}
-                        {availableTags.length > 0 && (
-                            <div className="input-tag-row">
-                                <FaTags size={12} className="input-icon" />
-                                <div className="tag-selector">
-                                    {availableTags.map((tag) => (
-                                        <button
-                                            key={tag.id}
-                                            type="button"
-                                            className={`tag-select-pill ${selectedTagIds.includes(tag.id) ? 'selected' : ''}`}
-                                            style={{
-                                                '--tag-color': tag.color,
-                                                background: selectedTagIds.includes(tag.id) ? tag.color : tag.color + '15',
-                                                color: selectedTagIds.includes(tag.id) ? '#fff' : tag.color,
-                                                borderColor: tag.color,
-                                            }}
-                                            onClick={() => toggleTag(tag.id)}
-                                        >
-                                            {tag.name}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
                     </div>
                 )}
             </form>

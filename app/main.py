@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .core.config import settings
-from .routers import todos, auth, tags
+from .routers import todos, auth, analytics
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -22,7 +22,7 @@ app.add_middleware(
 api_prefix = f"/api/{settings.API_VERSION}"
 app.include_router(auth.router, prefix=api_prefix)
 app.include_router(todos.router, prefix=api_prefix, tags=["todos"])
-app.include_router(tags.router, prefix=api_prefix)
+app.include_router(analytics.router, prefix=api_prefix)
 
 @app.get("/health")
 def health_check():

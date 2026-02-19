@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { FaCheck, FaTrash, FaPen, FaTimes, FaUndo, FaClock } from 'react-icons/fa';
+import { FaCheck, FaTrash, FaPen, FaTimes, FaUndo, FaClock, FaStar } from 'react-icons/fa';
+import { PRIORITY_OPTIONS, getPriorityColor } from '../api/todoApi';
 
 const formatDate = (dateStr) => {
     if (!dateStr) return null;
@@ -8,23 +9,21 @@ const formatDate = (dateStr) => {
         + ' ' + d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 };
 
-const TodoItem = ({ todo, onToggle, onDelete, onUpdate, availableTags = [] }) => {
+const TodoItem = ({ todo, onToggle, onDelete, onUpdate }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editTitle, setEditTitle] = useState(todo.title);
     const [editDesc, setEditDesc] = useState(todo.description || '');
     const [editDueDate, setEditDueDate] = useState(
         todo.due_date ? new Date(todo.due_date).toISOString().slice(0, 16) : ''
     );
-    const [editTagIds, setEditTagIds] = useState(
-        todo.tags ? todo.tags.map(t => t.id) : []
-    );
+    const [editPriority, setEditPriority] = useState(todo.priority || 'Normal');
 
     const startEditing = (e) => {
         e.stopPropagation();
         setEditTitle(todo.title);
         setEditDesc(todo.description || '');
         setEditDueDate(todo.due_date ? new Date(todo.due_date).toISOString().slice(0, 16) : '');
-        setEditTagIds(todo.tags ? todo.tags.map(t => t.id) : []);
+        setEditPriority(todo.priority || 'Normal');
         setIsEditing(true);
     };
 
@@ -43,14 +42,9 @@ const TodoItem = ({ todo, onToggle, onDelete, onUpdate, availableTags = [] }) =>
             title: editTitle.trim(),
             description: editDesc.trim() || null,
             due_date: editDueDate ? new Date(editDueDate).toISOString() : null,
-            tag_ids: editTagIds,
+            priority: editPriority,
         });
         setIsEditing(false);
-    };
-
-    const handleToggle = (e) => {
-        if (e.target.closest('button')) return;
-        onToggle(todo.id, !todo.is_done);
     };
 
     const handleDelete = (e) => {
@@ -58,14 +52,12 @@ const TodoItem = ({ todo, onToggle, onDelete, onUpdate, availableTags = [] }) =>
         onDelete(todo.id);
     };
 
-    const toggleEditTag = (tagId) => {
-        setEditTagIds((prev) =>
-            prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]
-        );
-    };
+    const priorityColor = getPriorityColor(todo.priority);
 
     return (
-        <li className={`todo-item ${todo.is_done ? 'completed' : ''} ${todo.is_overdue ? 'overdue' : ''} ${isEditing ? 'edit-mode' : ''}`}>
+        <li className={`todo-item ${todo.is_done ? 'completed' : ''} ${todo.is_overdue ? 'overdue' : ''} ${isEditing ? 'edit-mode' : ''}`}
+            style={{ borderLeft: `3px solid ${priorityColor}` }}
+        >
             {isEditing ? (
                 <>
                     <div className="edit-form">
@@ -91,25 +83,23 @@ const TodoItem = ({ todo, onToggle, onDelete, onUpdate, availableTags = [] }) =>
                                 onChange={(e) => setEditDueDate(e.target.value)}
                                 min={new Date(todo.created_at).toISOString().slice(0, 16)}
                             />
-                            {availableTags.length > 0 && (
-                                <div className="tag-selector compact">
-                                    {availableTags.map((tag) => (
-                                        <button
-                                            key={tag.id}
-                                            type="button"
-                                            className={`tag-select-pill ${editTagIds.includes(tag.id) ? 'selected' : ''}`}
-                                            style={{
-                                                background: editTagIds.includes(tag.id) ? tag.color : tag.color + '15',
-                                                color: editTagIds.includes(tag.id) ? '#fff' : tag.color,
-                                                borderColor: tag.color,
-                                            }}
-                                            onClick={() => toggleEditTag(tag.id)}
-                                        >
-                                            {tag.name}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
+                            <div className="priority-pills compact">
+                                {PRIORITY_OPTIONS.map((opt) => (
+                                    <button
+                                        key={opt.value}
+                                        type="button"
+                                        className={`priority-pill ${editPriority === opt.value ? 'active' : ''}`}
+                                        style={{
+                                            background: editPriority === opt.value ? opt.color : opt.color + '15',
+                                            color: editPriority === opt.value ? '#fff' : opt.color,
+                                            borderColor: opt.color,
+                                        }}
+                                        onClick={() => setEditPriority(opt.value)}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
                     <div className="actions">
@@ -134,20 +124,24 @@ const TodoItem = ({ todo, onToggle, onDelete, onUpdate, availableTags = [] }) =>
                         </div>
                         {todo.description && <div className="todo-desc">{todo.description}</div>}
 
-                        {/* Tags display */}
-                        {todo.tags && todo.tags.length > 0 && (
-                            <div className="todo-tags">
-                                {todo.tags.map((tag) => (
-                                    <span
-                                        key={tag.id}
-                                        className="tag-pill-sm"
-                                        style={{ background: tag.color + '20', color: tag.color }}
-                                    >
-                                        {tag.name}
-                                    </span>
-                                ))}
-                            </div>
-                        )}
+                        {/* Priority badge + Score display */}
+                        <div className="todo-meta-row">
+                            <span
+                                className="priority-badge"
+                                style={{
+                                    background: priorityColor + '20',
+                                    color: priorityColor,
+                                    borderColor: priorityColor,
+                                }}
+                            >
+                                {todo.priority || 'Normal'}
+                            </span>
+                            {todo.productivity_score !== null && todo.productivity_score !== undefined && (
+                                <span className="score-badge">
+                                    <FaStar size={10} /> {todo.productivity_score.toFixed(1)}
+                                </span>
+                            )}
+                        </div>
 
                         {/* Due date display */}
                         {todo.due_date && (

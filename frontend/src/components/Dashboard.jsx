@@ -1,53 +1,111 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-    PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
-    BarChart, Bar, XAxis, YAxis, CartesianGrid,
-    LineChart, Line, ComposedChart, Area,
-} from 'recharts';
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    Title,
+    Tooltip,
+    Legend,
+    ArcElement,
+    PointElement,
+    LineElement,
+    Filler,
+} from 'chart.js';
+import { Line, Bar, Doughnut } from 'react-chartjs-2';
+import { Calendar } from 'primereact/calendar';
 import { todoApi } from '../api/todoApi';
-import { FaChartPie, FaArrowLeft, FaTrophy } from 'react-icons/fa';
+import {
+    FaArrowLeft,
+    FaChartLine,
+    FaTasks,
+    FaCheckCircle,
+    FaStar,
+    FaArrowUp,
+    FaArrowDown,
+} from 'react-icons/fa';
+import {
+    buildWorkloadTrendData,
+    buildPriorityMixData,
+    buildPunctualityData,
+    buildScoreTrendData,
+    buildWeekdayActivityData,
+    buildLeadTimeData,
+    buildBacklogData,
+} from '../helpers/chartDataHelpers';
 
-const COLORS = {
-    early: '#22c55e',
-    late: '#ef4444',
-    on_time: '#3b82f6',
-    no_deadline: '#94a3b8',
-};
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    Title,
+    Tooltip,
+    Legend,
+    ArcElement,
+    PointElement,
+    LineElement,
+    Filler
+);
 
-const PRIORITY_COLORS = {
-    Priority: '#ef4444',
-    Important: '#f97316',
-    Necessary: '#3b82f6',
-    Normal: '#94a3b8',
-};
+// ── Month Picker Helpers ──
+function getMonthOptions() {
+    const options = [];
+    const now = new Date();
+    for (let i = 24; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const value = d.toISOString().slice(0, 7); // YYYY-MM
+        const label = d.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+        options.push({ value, label });
+    }
+    return options;
+}
 
+function monthToStartDate(ym) {
+    return new Date(ym + '-01').toISOString();
+}
+
+function monthToEndDate(ym) {
+    const [y, m] = ym.split('-').map(Number);
+    const last = new Date(y, m, 0); // last day of month
+    last.setHours(23, 59, 59);
+    return last.toISOString();
+}
+
+// ══════════════════════════════════════════════
+// Dashboard Component
+// ══════════════════════════════════════════════
 const Dashboard = ({ onBack }) => {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // Date range defaults: last 30 days
-    const today = new Date();
-    const thirtyDaysAgo = new Date(today);
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const [startDate, setStartDate] = useState(thirtyDaysAgo.toISOString().slice(0, 10));
-    const [endDate, setEndDate] = useState(today.toISOString().slice(0, 10));
-    const [unit, setUnit] = useState('week');
+    const now = new Date();
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const [startDate, setStartDate] = useState(sixMonthsAgo);
+    const [endDate, setEndDate] = useState(now);
+    const [unit, setUnit] = useState('month');
 
     const fetchStats = async () => {
         setLoading(true);
         setError(null);
         try {
+            const startStr = startDate ? new Date(startDate.getFullYear(), startDate.getMonth(), 1).toISOString() : new Date(sixMonthsAgo.getFullYear(), sixMonthsAgo.getMonth(), 1).toISOString();
+
+            let endStr = new Date().toISOString();
+            if (endDate) {
+                const endMonthLastDay = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0, 23, 59, 59);
+                endStr = endMonthLastDay.toISOString();
+            }
+
             const params = {
-                start_date: new Date(startDate).toISOString(),
-                end_date: new Date(endDate + 'T23:59:59').toISOString(),
+                start_date: startStr,
+                end_date: endStr,
                 unit,
             };
             const res = await todoApi.getAnalyticsStats(params);
             setStats(res.data);
         } catch (err) {
-            setError('Không thể tải dữ liệu analytics: ' + (err.response?.data?.detail || err.message));
+            setError('Failed to load analytics: ' + (err.response?.data?.detail || err.message));
         } finally {
             setLoading(false);
         }
@@ -57,82 +115,79 @@ const Dashboard = ({ onBack }) => {
         fetchStats();
     }, [startDate, endDate, unit]);
 
-    // Prepare pie chart data
-    const pieData = useMemo(() => {
-        if (!stats?.pie_data) return [];
-        const { early, late, on_time, no_deadline } = stats.pie_data;
-        return [
-            { name: 'Sớm hạn', value: early, color: COLORS.early },
-            { name: 'Trễ hạn', value: late, color: COLORS.late },
-            { name: 'Đúng hạn', value: on_time, color: COLORS.on_time },
-            { name: 'Không deadline', value: no_deadline, color: COLORS.no_deadline },
-        ].filter(d => d.value > 0);
+
+    // ── Build chart configs ──
+    const charts = useMemo(() => {
+        if (!stats) return null;
+        return {
+            workload: buildWorkloadTrendData(stats.workload_trend || []),
+            priority: buildPriorityMixData(stats.priority_mix || {}),
+            punctuality: buildPunctualityData(stats.punctuality || []),
+            score: buildScoreTrendData(stats.score_trend || []),
+            weekday: buildWeekdayActivityData(stats.weekday_activity || {}),
+            leadTime: buildLeadTimeData(stats.lead_time || []),
+            backlog: buildBacklogData(stats.cumulative_backlog || []),
+        };
     }, [stats]);
 
-    // Score gauge percentage
-    const scorePercent = stats?.cumulative_score ? Math.min(stats.cumulative_score, 100) : 0;
-
-    // Score color
-    const getScoreColor = (score) => {
-        if (score >= 70) return '#22c55e';
-        if (score >= 40) return '#f97316';
-        return '#ef4444';
-    };
-
+    // ── Loading State ──
     if (loading) {
         return (
-            <div className="dashboard-container">
-                <div className="dashboard-header">
-                    <button className="back-btn" onClick={onBack}><FaArrowLeft /> Quay lại</button>
-                    <h2><FaChartPie /> Productivity Dashboard</h2>
+            <div className="report-container">
+                <div className="report-header">
+                    <button className="back-btn" onClick={onBack}><FaArrowLeft /> Back</button>
+                    <h2><FaChartLine /> Productivity Report</h2>
                 </div>
                 <div className="dashboard-loading">
                     <div className="spinner"></div>
-                    <p>Đang tải dữ liệu...</p>
+                    <p>Loading analytics...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="dashboard-container">
-            {/* Header */}
-            <div className="dashboard-header">
-                <button className="back-btn" onClick={onBack}><FaArrowLeft /> Quay lại</button>
-                <h2><FaChartPie /> Productivity Dashboard</h2>
+        <div className="report-container">
+            {/* ── Header & Filters ── */}
+            <div className="report-header">
+                <button className="back-btn" onClick={onBack}><FaArrowLeft />Trở lại</button>
+                <h2><FaChartLine /> Productivity Report</h2>
             </div>
 
-            {/* Controls */}
-            <div className="dashboard-controls">
-                <div className="date-range-group">
+            <div className="report-filters">
+                <div className="month-pickers">
                     <label>
-                        Từ:
-                        <input
-                            type="date"
+                        Từ tháng:
+                        <Calendar
+                            view="month"
+                            dateFormat="mm/yy"
                             value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            className="dashboard-date-input"
+                            onChange={(e) => setStartDate(e.value)}
+                            readOnlyInput
+                            maxDate={endDate || new Date()}
                         />
                     </label>
                     <label>
-                        Đến:
-                        <input
-                            type="date"
+                        Đến tháng:
+                        <Calendar
+                            view="month"
+                            dateFormat="mm/yy"
                             value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                            className="dashboard-date-input"
+                            onChange={(e) => setEndDate(e.value)}
+                            readOnlyInput
+                            minDate={startDate}
                         />
                     </label>
                 </div>
-                <div className="unit-selector">
+                <div className="unit-toggle">
                     <button
-                        className={`unit-btn ${unit === 'week' ? 'active' : ''}`}
+                        className={`toggle-btn ${unit === 'week' ? 'active' : ''}`}
                         onClick={() => setUnit('week')}
                     >
                         Tuần
                     </button>
                     <button
-                        className={`unit-btn ${unit === 'month' ? 'active' : ''}`}
+                        className={`toggle-btn ${unit === 'month' ? 'active' : ''}`}
                         onClick={() => setUnit('month')}
                     >
                         Tháng
@@ -140,195 +195,92 @@ const Dashboard = ({ onBack }) => {
                 </div>
             </div>
 
-            {error && <div className="dashboard-error">{error}</div>}
+            {error && <div className="report-error">{error}</div>}
 
-            {stats && (
+            {stats && charts && (
                 <>
-                    {/* Cumulative Score */}
-                    <div className="score-card">
-                        <div className="score-icon"><FaTrophy size={28} /></div>
-                        <div className="score-info">
-                            <span className="score-label">Điểm năng suất trung bình</span>
-                            <span
-                                className="score-value"
-                                style={{ color: getScoreColor(scorePercent) }}
-                            >
-                                {scorePercent.toFixed(1)} <span className="score-unit">/ 100</span>
-                            </span>
+                    {/* ── KPI Cards ── */}
+                    <div className="kpi-row">
+                        <div className="kpi-card">
+                            <div className="kpi-icon" style={{ background: 'rgba(14, 165, 233, 0.15)', color: '#0ea5e9' }}>
+                                <FaTasks />
+                            </div>
+                            <div className="kpi-body">
+                                <span className="kpi-label">Tổng số công việc</span>
+                                <span className="kpi-value">{stats.kpi.total_tasks}</span>
+                            </div>
                         </div>
-                        <div className="score-bar-container">
-                            <div
-                                className="score-bar-fill"
-                                style={{
-                                    width: `${scorePercent}%`,
-                                    background: `linear-gradient(90deg, ${getScoreColor(scorePercent)}, ${getScoreColor(scorePercent)}cc)`,
-                                }}
-                            />
+                        <div className="kpi-card">
+                            <div className="kpi-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
+                                <FaCheckCircle />
+                            </div>
+                            <div className="kpi-body">
+                                <span className="kpi-label">Đã hoàn thành</span>
+                                <span className="kpi-value">{stats.kpi.completed_tasks}</span>
+                            </div>
                         </div>
-                    </div>
-
-                    {/* Charts Grid */}
-                    <div className="charts-grid">
-                        {/* Pie Chart */}
-                        <div className="chart-card">
-                            <h3>Tỉ lệ hoàn thành</h3>
-                            {pieData.length > 0 ? (
-                                <ResponsiveContainer width="100%" height={260}>
-                                    <PieChart>
-                                        <Pie
-                                            data={pieData}
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={55}
-                                            outerRadius={90}
-                                            paddingAngle={3}
-                                            dataKey="value"
-                                            stroke="none"
-                                        >
-                                            {pieData.map((entry, idx) => (
-                                                <Cell key={idx} fill={entry.color} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip
-                                            contentStyle={{
-                                                background: 'rgba(255,255,255,0.95)',
-                                                borderRadius: '10px',
-                                                border: 'none',
-                                                boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-                                                fontSize: '0.85rem',
-                                            }}
-                                        />
-                                        <Legend
-                                            verticalAlign="bottom"
-                                            iconType="circle"
-                                            wrapperStyle={{ fontSize: '0.8rem' }}
-                                        />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <div className="chart-empty">Chưa có dữ liệu</div>
-                            )}
-                        </div>
-
-                        {/* Stacked Column + Line Chart */}
-                        <div className="chart-card chart-wide">
-                            <h3>Phân bổ theo mức ưu tiên & điểm trung bình</h3>
-                            {stats.stacked_column_data?.length > 0 ? (
-                                <ResponsiveContainer width="100%" height={280}>
-                                    <ComposedChart data={stats.stacked_column_data}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
-                                        <XAxis
-                                            dataKey="period"
-                                            tick={{ fontSize: 11 }}
-                                            axisLine={{ stroke: '#e2e8f0' }}
-                                        />
-                                        <YAxis
-                                            yAxisId="left"
-                                            tick={{ fontSize: 11 }}
-                                            axisLine={{ stroke: '#e2e8f0' }}
-                                            label={{ value: 'Số task', angle: -90, position: 'insideLeft', style: { fontSize: 11, fill: '#94a3b8' } }}
-                                        />
-                                        <YAxis
-                                            yAxisId="right"
-                                            orientation="right"
-                                            tick={{ fontSize: 11 }}
-                                            axisLine={{ stroke: '#e2e8f0' }}
-                                            domain={[0, 100]}
-                                            label={{ value: 'Điểm TB', angle: 90, position: 'insideRight', style: { fontSize: 11, fill: '#94a3b8' } }}
-                                        />
-                                        <Tooltip
-                                            contentStyle={{
-                                                background: 'rgba(255,255,255,0.95)',
-                                                borderRadius: '10px',
-                                                border: 'none',
-                                                boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-                                                fontSize: '0.8rem',
-                                            }}
-                                        />
-                                        <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
-                                        <Bar yAxisId="left" dataKey="Priority" stackId="a" fill={PRIORITY_COLORS.Priority} radius={[0, 0, 0, 0]} />
-                                        <Bar yAxisId="left" dataKey="Important" stackId="a" fill={PRIORITY_COLORS.Important} />
-                                        <Bar yAxisId="left" dataKey="Necessary" stackId="a" fill={PRIORITY_COLORS.Necessary} />
-                                        <Bar yAxisId="left" dataKey="Normal" stackId="a" fill={PRIORITY_COLORS.Normal} radius={[4, 4, 0, 0]} />
-                                    </ComposedChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <div className="chart-empty">Chưa có dữ liệu</div>
-                            )}
-                        </div>
-
-                        {/* Line Chart - Average Scores */}
-                        <div className="chart-card chart-wide">
-                            <h3>Điểm năng suất trung bình theo {unit === 'week' ? 'tuần' : 'tháng'}</h3>
-                            {stats.line_chart_data?.length > 0 ? (
-                                <ResponsiveContainer width="100%" height={250}>
-                                    <LineChart data={stats.line_chart_data}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
-                                        <XAxis
-                                            dataKey="period"
-                                            tick={{ fontSize: 11 }}
-                                            axisLine={{ stroke: '#e2e8f0' }}
-                                        />
-                                        <YAxis
-                                            domain={[0, 100]}
-                                            tick={{ fontSize: 11 }}
-                                            axisLine={{ stroke: '#e2e8f0' }}
-                                        />
-                                        <Tooltip
-                                            contentStyle={{
-                                                background: 'rgba(255,255,255,0.95)',
-                                                borderRadius: '10px',
-                                                border: 'none',
-                                                boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-                                                fontSize: '0.85rem',
-                                            }}
-                                        />
-                                        <defs>
-                                            <linearGradient id="scoreGradient" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                                            </linearGradient>
-                                        </defs>
-                                        <Area
-                                            type="monotone"
-                                            dataKey="avg_score"
-                                            stroke="none"
-                                            fill="url(#scoreGradient)"
-                                        />
-                                        <Line
-                                            type="monotone"
-                                            dataKey="avg_score"
-                                            stroke="#6366f1"
-                                            strokeWidth={3}
-                                            dot={{ fill: '#6366f1', r: 5, strokeWidth: 2, stroke: '#fff' }}
-                                            activeDot={{ r: 7, fill: '#4f46e5' }}
-                                            name="Điểm TB"
-                                        />
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <div className="chart-empty">Chưa có dữ liệu</div>
-                            )}
+                        <div className="kpi-card">
+                            <div className="kpi-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: '#8b5cf6' }}>
+                                <FaStar />
+                            </div>
+                            <div className="kpi-body">
+                                <span className="kpi-label">Điểm trung bình</span>
+                                <span className="kpi-value">{stats.kpi.avg_score}</span>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Summary Stats */}
-                    <div className="summary-stats">
-                        <div className="stat-item">
-                            <span className="stat-number" style={{ color: COLORS.early }}>{stats.pie_data?.early || 0}</span>
-                            <span className="stat-label">Sớm hạn</span>
+                    {/* ── Chart Row 1: Workload (60%) + Priority (40%) ── */}
+                    <div className="chart-row chart-row-64">
+                        <div className="chart-panel panel-60">
+                            <h3>Xu hướng công việc</h3>
+                            <div className="chart-canvas">
+                                <Line data={charts.workload.data} options={charts.workload.options} />
+                            </div>
                         </div>
-                        <div className="stat-item">
-                            <span className="stat-number" style={{ color: COLORS.on_time }}>{stats.pie_data?.on_time || 0}</span>
-                            <span className="stat-label">Đúng hạn</span>
+                        <div className="chart-panel panel-40">
+                            <h3>Cơ cấu theo độ ưu tiên</h3>
+                            <div className="chart-canvas">
+                                <Doughnut data={charts.priority.data} options={charts.priority.options} />
+                            </div>
                         </div>
-                        <div className="stat-item">
-                            <span className="stat-number" style={{ color: COLORS.late }}>{stats.pie_data?.late || 0}</span>
-                            <span className="stat-label">Trễ hạn</span>
+                    </div>
+
+                    {/* ── Chart Row 2: Punctuality (50%) + Score Trend (50%) ── */}
+                    <div className="chart-row chart-row-50">
+                        <div className="chart-panel">
+                            <h3>Đúng hạn / Trễ hạn</h3>
+                            <div className="chart-canvas">
+                                <Bar data={charts.punctuality.data} options={charts.punctuality.options} />
+                            </div>
                         </div>
-                        <div className="stat-item">
-                            <span className="stat-number" style={{ color: '#1e293b' }}>{stats.pie_data?.total || 0}</span>
-                            <span className="stat-label">Tổng cộng</span>
+                        <div className="chart-panel">
+                            <h3>Biến động điểm số</h3>
+                            <div className="chart-canvas">
+                                <Line data={charts.score.data} options={charts.score.options} />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ── Chart Row 3: Weekday / Lead Time / Backlog (1/3 each) ── */}
+                    <div className="chart-row chart-row-33">
+                        <div className="chart-panel">
+                            <h3>Thứ trong tuần</h3>
+                            <div className="chart-canvas">
+                                <Bar data={charts.weekday.data} options={charts.weekday.options} />
+                            </div>
+                        </div>
+                        <div className="chart-panel">
+                            <h3>Thời gian xử lý trung bình</h3>
+                            <div className="chart-canvas">
+                                <Bar data={charts.leadTime.data} options={charts.leadTime.options} />
+                            </div>
+                        </div>
+                        <div className="chart-panel">
+                            <h3>Thời gian chờ</h3>
+                            <div className="chart-canvas">
+                                <Line data={charts.backlog.data} options={charts.backlog.options} />
+                            </div>
                         </div>
                     </div>
                 </>

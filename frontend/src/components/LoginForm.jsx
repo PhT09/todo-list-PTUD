@@ -35,6 +35,7 @@ const LoginForm = ({ onSwitch }) => {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     autoFocus
+                    style={{ width: '100%' }}
                 />
                 <input
                     type="password"
@@ -42,6 +43,7 @@ const LoginForm = ({ onSwitch }) => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    style={{ width: '100%' }}
                 />
                 <button type="submit" className="auth-btn" disabled={loading}>
                     {loading ? "Đang xử lý..." : "Đăng Nhập"}

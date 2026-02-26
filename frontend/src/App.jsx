@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { AuthProvider, useAuth } from './context/AuthContext'
-import Header from './components/Header'
+import ThemeToggle from './components/ThemeToggle'
 import TodoInput from './components/TodoInput'
 import FilterSortBar from './components/FilterSortBar'
 import TodoList from './components/TodoList'
@@ -9,6 +9,7 @@ import LoginForm from './components/LoginForm'
 import RegisterForm from './components/RegisterForm'
 import Dashboard from './components/Dashboard'
 import { todoApi } from './api/todoApi'
+import { FaSignOutAlt } from 'react-icons/fa'
 import './index.css'
 
 import TrashManager from './components/TrashManager'
@@ -184,76 +185,99 @@ function TodoApp() {
 
     const showPagination = currentFilter !== 'overdue' && currentFilter !== 'today';
 
-    // ── Dashboard View ──
-    if (showDashboard) {
-        return (
-            <div className="container dashboard-view">
-                <Dashboard onBack={() => setShowDashboard(false)} />
-            </div>
-        );
-    }
-
+    // ── Grid Layout View ──
     return (
         <>
-            <div className="container">
-                <Header />
+            <div className={`container ${showDashboard ? 'dashboard-view' : ''} app-grid-container`}>
 
-                {/* User Info Bar */}
-                <div className="user-bar">
-                    <span>{user?.email}</span>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                        <button
-                            className="nav-btn dashboard-nav-btn"
-                            onClick={() => setShowDashboard(true)}
-                        >
-                            Dashboard
-                        </button>
-                        <button
-                            className="nav-btn trash-nav-btn"
-                            onClick={() => setIsTrashOpen(true)}
-                        >
-                            Thùng Rác {trashCount > 0 && <span className="badge">{trashCount}</span>}
-                        </button>
-                        <button className="logout-btn" onClick={logout}>Đăng Xuất</button>
+                {/* Header: Title & Theme Toggle */}
+                <header className="app-header">
+                    <div>
+                        <h1>Todo App</h1>
+                        <p>Quản lý công việc hiệu quả</p>
                     </div>
-                </div>
+                    <ThemeToggle />
+                </header>
 
-                <TodoInput onAdd={handleAdd} />
+                {showDashboard ? (
+                    <div className="dashboard-wrapper">
+                        <Dashboard onBack={() => setShowDashboard(false)} />
+                    </div>
+                ) : (
+                    <div className="main-grid">
+                        {/* Left Column: Controls */}
+                        <aside className="left-column">
+                            <div className="user-controls-section">
+                                <div className="user-info">
+                                    <span className="user-email">{user?.email}</span>
+                                        <button
+                                            className="nav-btn dashboard-nav-btn"
+                                            onClick={() => setShowDashboard(true)}
+                                        >
+                                            Thống kê
+                                        </button>
+                                        <button
+                                            className="nav-btn trash-nav-btn"
+                                            onClick={() => setIsTrashOpen(true)}
+                                        >
+                                            Thùng Rác {trashCount > 0 && <span className="badge">{trashCount}</span>}
+                                        </button>
+                                    <button className="logout-btn-small" onClick={logout} title="Đăng xuất">
+                                        <FaSignOutAlt />
+                                    </button>
 
-                <FilterSortBar
-                    currentFilter={currentFilter}
-                    onFilterChange={(filter) => { setCurrentFilter(filter); setCurrentPage(1); }}
-                    searchTerm={searchTerm}
-                    onSearchChange={setSearchTerm}
-                    sortOrder={sortOrder}
-                    onSortChange={setSortOrder}
-                />
+                                </div>
 
-                <TodoList
-                    todos={todos}
-                    onToggle={handleToggle}
-                    onDelete={handleDelete}
-                    onUpdate={handleUpdateContent}
-                />
+                            </div>
 
-                <div className="status-bar">
-                    <span id="items-left">{totalItems} công việc tìm thấy</span>
-                    <button id="clear-completed" onClick={handleClearCompleted}>
-                        Xóa đã xong
-                    </button>
-                </div>
+                            <TodoInput onAdd={handleAdd} />
 
-                {showPagination && (
-                    <PaginationBar
-                        currentPage={currentPage}
-                        totalItems={totalItems}
-                        itemsPerPage={itemsPerPage}
-                        onPageChange={setCurrentPage}
-                    />
+                            <FilterSortBar
+                                currentFilter={currentFilter}
+                                onFilterChange={(filter) => { setCurrentFilter(filter); setCurrentPage(1); }}
+                                searchTerm={searchTerm}
+                                onSearchChange={setSearchTerm}
+                                sortOrder={sortOrder}
+                                onSortChange={setSortOrder}
+                            />
+                        </aside>
+
+                        {/* Right Column: List & Pagination */}
+                        <main className="right-column">
+                            <div className="list-header">
+                                <h3>Danh sách công việc</h3>
+                                <span className="items-count">{totalItems} task</span>
+                            </div>
+
+                            <TodoList
+                                todos={todos}
+                                onToggle={handleToggle}
+                                onDelete={handleDelete}
+                                onUpdate={handleUpdateContent}
+                            />
+
+                            <div className="list-footer">
+                                {showPagination && (
+                                    <PaginationBar
+                                        currentPage={currentPage}
+                                        totalItems={totalItems}
+                                        itemsPerPage={itemsPerPage}
+                                        onPageChange={setCurrentPage}
+                                    />
+                                )}
+
+                                {todos.some(t => t.is_done) && (
+                                    <button id="clear-completed" onClick={handleClearCompleted}>
+                                        Xóa đã xong
+                                    </button>
+                                )}
+                            </div>
+                        </main>
+                    </div>
                 )}
 
-            </div>
 
+            </div>
             <TrashManager
                 isOpen={isTrashOpen}
                 onClose={() => setIsTrashOpen(false)}
@@ -272,9 +296,12 @@ function AuthPage() {
 
     return (
         <div className="auth-container">
+            <div className="auth-header-row">
+                <ThemeToggle />
+            </div>
             <div className="auth-header">
-                <h1>📝 Todo App</h1>
-                <p>Quản lý công việc hiệu quả</p>
+                <h1 style={{ textAlign: 'center' }}>Todo App</h1>
+                <p style={{ textAlign: 'center', marginBottom: '10px' }}>Quản lý công việc hiệu quả</p>
             </div>
             {isLogin
                 ? <LoginForm onSwitch={() => setIsLogin(false)} />

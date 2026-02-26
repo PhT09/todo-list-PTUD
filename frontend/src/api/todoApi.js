@@ -9,15 +9,20 @@ const apiClient = axios.create({
 });
 
 export const PRIORITY_OPTIONS = [
-    { value: 'Priority', label: 'Priority', color: '#ef4444' },
-    { value: 'Important', label: 'Important', color: '#f97316' },
-    { value: 'Necessary', label: 'Necessary', color: '#3b82f6' },
-    { value: 'Normal', label: 'Normal', color: '#94a3b8' },
+    { value: 'Priority', label: 'Ưu tiên', color: '#ef4444' },
+    { value: 'Important', label: 'Quan trọng', color: '#f97316' },
+    { value: 'Necessary', label: 'Cần thiết', color: '#3b82f6' },
+    { value: 'Normal', label: 'Bình thường', color: '#94a3b8' },
 ];
 
 export const getPriorityColor = (priority) => {
     const opt = PRIORITY_OPTIONS.find(p => p.value === priority);
     return opt ? opt.color : '#94a3b8';
+};
+
+export const getPriorityLabel = (priority) => {
+    const opt = PRIORITY_OPTIONS.find(p => p.value === priority);
+    return opt ? opt.label : 'Bình thường';
 };
 
 export const todoApi = {

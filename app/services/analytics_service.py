@@ -1,24 +1,23 @@
 """
 Analytics Service - Business logic for productivity analytics.
-Processes raw data into chart-ready structures.
+Processes raw task data into chart-ready structures for the Productivity Dashboard.
 """
 
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
 from collections import defaultdict
+import math
 
 from ..repositories.analytics_repository import AnalyticsRepository
 from ..models.todo import Todo
 
 PRIORITY_OPTIONS = ["Priority", "Important", "Necessary", "Normal"]
+WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
+
+# ── Period helpers ──
 
 def _get_period_key(dt: datetime, unit: str) -> str:
-    """
-    Return a period key string for grouping.
-    - week:  'YYYY-WNN'  (ISO week number)
-    - month: 'YYYY-MM'
-    """
     if unit == "week":
         iso_year, iso_week, _ = dt.isocalendar()
         return f"{iso_year}-W{iso_week:02d}"
@@ -26,17 +25,7 @@ def _get_period_key(dt: datetime, unit: str) -> str:
         return dt.strftime("%Y-%m")
 
 
-def _get_period_label(dt: datetime, unit: str) -> str:
-    """Human-readable label for a period."""
-    if unit == "week":
-        iso_year, iso_week, _ = dt.isocalendar()
-        return f"W{iso_week:02d}/{iso_year}"
-    else:
-        return dt.strftime("%m/%Y")
-
-
 def _generate_period_keys(start: datetime, end: datetime, unit: str) -> List[str]:
-    """Generate all period keys between start and end."""
     keys = []
     current = start
     seen = set()
@@ -61,99 +50,202 @@ class AnalyticsService:
         unit: str = "week",
     ) -> Dict[str, Any]:
         """
-        Generate analytics data for the dashboard.
+        Generate comprehensive analytics data for the Productivity Dashboard.
 
-        Returns:
-            - pie_data: Early vs Late task ratios
-            - stacked_column_data: Task counts by priority per time unit
-            - line_chart_data: Average productivity scores per time unit
-            - cumulative_score: Overall average score (X/100)
+        Returns: kpi, workload_trend, priority_mix, punctuality,
+                 score_trend, weekday_activity, lead_time, cumulative_backlog
         """
-        tasks = self.repo.get_completed_tasks_in_range(owner_id, start_date, end_date)
-        total = len(tasks)
+        # Compute previous period (same duration, immediately before start_date)
+        duration = end_date - start_date
+        prev_start = start_date - duration
+        prev_end = start_date - timedelta(seconds=1)
 
-        # ── Pie Data: Early vs Late ──
-        early_count = 0
-        late_count = 0
-        on_time_count = 0
-        no_deadline_count = 0
+        # ── Fetch data ──
+        all_tasks = self.repo.get_all_tasks_in_range(owner_id, start_date, end_date)
+        completed_tasks = self.repo.get_completed_tasks_in_range(owner_id, start_date, end_date)
 
-        for t in tasks:
-            if t.due_date is None:
-                no_deadline_count += 1
-                continue
-            if t.completed_at and t.due_date:
-                diff = (t.due_date - t.completed_at).total_seconds()
-                if diff > 0:
-                    early_count += 1
-                elif diff < 0:
-                    late_count += 1
-                else:
-                    on_time_count += 1
+        prev_all_tasks = self.repo.get_all_tasks_in_range(owner_id, prev_start, prev_end)
+        prev_completed = self.repo.get_completed_tasks_in_range(owner_id, prev_start, prev_end)
 
-        pie_data = {
-            "early": early_count,
-            "late": late_count,
-            "on_time": on_time_count,
-            "no_deadline": no_deadline_count,
-            "total": total,
-            "early_ratio": round(early_count / total, 4) if total > 0 else 0,
-            "late_ratio": round(late_count / total, 4) if total > 0 else 0,
-        }
+        # Period keys for x-axes
+        periods = _generate_period_keys(start_date, end_date, unit)
 
-        # ── Stacked Column Data: priority x time-unit ──
-        all_periods = _generate_period_keys(start_date, end_date, unit)
+        # ── 1. KPI Cards ──
+        kpi = self._compute_kpi(all_tasks, completed_tasks, prev_all_tasks, prev_completed,
+                                start_date, end_date, prev_start, prev_end, owner_id)
 
-        # Initialize: { period_key: { priority: count } }
-        stacked_data = {
-            p: {prio: 0 for prio in PRIORITY_OPTIONS}
-            for p in all_periods
-        }
+        # ── 2. Workload Trend (new vs completed per period) ──
+        workload_trend = self._compute_workload_trend(all_tasks, completed_tasks, periods, unit)
 
-        # Score accumulators per period for line chart
-        score_sums = defaultdict(float)
-        score_counts = defaultdict(int)
+        # ── 3. Priority Mix (donut of completed by priority) ──
+        priority_mix = self._compute_priority_mix(completed_tasks)
 
-        for t in tasks:
-            if t.completed_at is None:
-                continue
-            period = _get_period_key(t.completed_at, unit)
-            priority = t.priority if t.priority in PRIORITY_OPTIONS else "Normal"
-            if period in stacked_data:
-                stacked_data[period][priority] += 1
-            else:
-                stacked_data[period] = {prio: 0 for prio in PRIORITY_OPTIONS}
-                stacked_data[period][priority] = 1
+        # ── 4. Punctuality (on-time vs overdue per period) ──
+        punctuality = self._compute_punctuality(completed_tasks, periods, unit)
 
-            if t.productivity_score is not None:
-                score_sums[period] += t.productivity_score
-                score_counts[period] += 1
+        # ── 5. Score Trend (avg score per period) ──
+        score_trend = self._compute_score_trend(completed_tasks, periods, unit)
 
-        # Format stacked_column_data as list
-        stacked_column_data = []
-        for period in all_periods:
-            entry = {"period": period}
-            entry.update(stacked_data.get(period, {prio: 0 for prio in PRIORITY_OPTIONS}))
-            stacked_column_data.append(entry)
-        # Add any periods that exist in data but not in all_periods
-        for period in stacked_data:
-            if period not in all_periods:
-                entry = {"period": period}
-                entry.update(stacked_data[period])
-                stacked_column_data.append(entry)
+        # ── 6. Weekday Activity ──
+        weekday_activity = self._compute_weekday_activity(completed_tasks)
 
-        # ── Line Chart Data: Average scores per period ──
-        line_chart_data = []
-        for period in all_periods:
-            avg = round(score_sums[period] / score_counts[period], 2) if score_counts[period] > 0 else 0
-            line_chart_data.append({"period": period, "avg_score": avg})
+        # ── 7. Lead Time (avg days to complete per period) ──
+        lead_time = self._compute_lead_time(completed_tasks, periods, unit)
 
-        # ── Cumulative Score ──
-        cumulative_score = self.repo.get_average_score(owner_id, start_date, end_date)
+        # ── 8. Cumulative Backlog ──
+        cumulative_backlog = self._compute_cumulative_backlog(all_tasks, periods, unit)
 
         return {
-            "pie_data": pie_data,
-            "stacked_column_data": stacked_column_data,
-            "line_chart_data": line_chart_data,
-            "cumulative_score": cumulative_score,
+            "kpi": kpi,
+            "workload_trend": workload_trend,
+            "priority_mix": priority_mix,
+            "punctuality": punctuality,
+            "score_trend": score_trend,
+            "weekday_activity": weekday_activity,
+            "lead_time": lead_time,
+            "cumulative_backlog": cumulative_backlog,
         }
+
+    # ────────────────────────────────────────────
+    # Private computation methods
+    # ────────────────────────────────────────────
+
+    def _compute_kpi(self, all_tasks, completed_tasks, prev_all, prev_completed,
+                     start, end, prev_start, prev_end, owner_id):
+        total = len(all_tasks)
+        completed = len(completed_tasks)
+        avg_score = self.repo.get_average_score(owner_id, start, end)
+
+        prev_total = len(prev_all)
+        prev_comp = len(prev_completed)
+        prev_avg = self.repo.get_average_score(owner_id, prev_start, prev_end)
+
+        def growth(current, previous):
+            if previous == 0:
+                return 100.0 if current > 0 else 0.0
+            return round(((current - previous) / previous) * 100, 1)
+
+        return {
+            "total_tasks": total,
+            "total_tasks_growth": growth(total, prev_total),
+            "completed_tasks": completed,
+            "completed_tasks_growth": growth(completed, prev_comp),
+            "avg_score": avg_score,
+            "avg_score_growth": growth(avg_score, prev_avg),
+        }
+
+    def _compute_workload_trend(self, all_tasks, completed_tasks, periods, unit):
+        new_counts = {p: 0 for p in periods}
+        done_counts = {p: 0 for p in periods}
+
+        for t in all_tasks:
+            if t.created_at:
+                key = _get_period_key(t.created_at, unit)
+                if key in new_counts:
+                    new_counts[key] += 1
+
+        for t in completed_tasks:
+            if t.completed_at:
+                key = _get_period_key(t.completed_at, unit)
+                if key in done_counts:
+                    done_counts[key] += 1
+
+        return [
+            {"period": p, "new_tasks": new_counts[p], "completed_tasks": done_counts[p]}
+            for p in periods
+        ]
+
+    def _compute_priority_mix(self, completed_tasks):
+        counts = {p: 0 for p in PRIORITY_OPTIONS}
+        for t in completed_tasks:
+            prio = t.priority if t.priority in PRIORITY_OPTIONS else "Normal"
+            counts[prio] += 1
+        return counts
+
+    def _compute_punctuality(self, completed_tasks, periods, unit):
+        on_time = {p: 0 for p in periods}
+        overdue = {p: 0 for p in periods}
+
+        for t in completed_tasks:
+            if not t.completed_at or not t.due_date:
+                continue
+            key = _get_period_key(t.completed_at, unit)
+            if key not in on_time:
+                continue
+            if t.completed_at <= t.due_date:
+                on_time[key] += 1
+            else:
+                overdue[key] += 1
+
+        return [
+            {"period": p, "on_time": on_time[p], "overdue": overdue[p]}
+            for p in periods
+        ]
+
+    def _compute_score_trend(self, completed_tasks, periods, unit):
+        sums = {p: 0.0 for p in periods}
+        counts = {p: 0 for p in periods}
+
+        for t in completed_tasks:
+            if t.completed_at and t.productivity_score is not None:
+                key = _get_period_key(t.completed_at, unit)
+                if key in sums:
+                    sums[key] += t.productivity_score
+                    counts[key] += 1
+
+        return [
+            {
+                "period": p,
+                "avg_score": round(sums[p] / counts[p], 2) if counts[p] > 0 else 0,
+            }
+            for p in periods
+        ]
+
+    def _compute_weekday_activity(self, completed_tasks):
+        counts = {d: 0 for d in WEEKDAYS}
+        for t in completed_tasks:
+            if t.completed_at:
+                day_idx = t.completed_at.weekday()  # 0=Mon
+                counts[WEEKDAYS[day_idx]] += 1
+        return counts
+
+    def _compute_lead_time(self, completed_tasks, periods, unit):
+        sums = {p: 0.0 for p in periods}
+        counts = {p: 0 for p in periods}
+
+        for t in completed_tasks:
+            if t.completed_at and t.created_at:
+                key = _get_period_key(t.completed_at, unit)
+                if key in sums:
+                    days = (t.completed_at - t.created_at).total_seconds() / 86400.0
+                    sums[key] += days
+                    counts[key] += 1
+
+        return [
+            {
+                "period": p,
+                "avg_days": round(sums[p] / counts[p], 1) if counts[p] > 0 else 0,
+            }
+            for p in periods
+        ]
+
+    def _compute_cumulative_backlog(self, all_tasks, periods, unit):
+        created = {p: 0 for p in periods}
+        completed = {p: 0 for p in periods}
+
+        for t in all_tasks:
+            if t.created_at:
+                key = _get_period_key(t.created_at, unit)
+                if key in created:
+                    created[key] += 1
+            if t.completed_at:
+                key = _get_period_key(t.completed_at, unit)
+                if key in completed:
+                    completed[key] += 1
+
+        result = []
+        running = 0
+        for p in periods:
+            running += created[p] - completed[p]
+            result.append({"period": p, "backlog": max(running, 0)})
+        return result

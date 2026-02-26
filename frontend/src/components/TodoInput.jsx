@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { FaPlus, FaCalendarAlt } from 'react-icons/fa';
+import { useState, useRef, useEffect } from 'react';
+import { FaPlus } from 'react-icons/fa';
+import { Calendar } from 'primereact/calendar';
 import { PRIORITY_OPTIONS } from '../api/todoApi';
 
 const TodoInput = ({ onAdd, isAdding }) => {
@@ -7,16 +8,58 @@ const TodoInput = ({ onAdd, isAdding }) => {
     const [description, setDescription] = useState('');
     const [dueDate, setDueDate] = useState('');
     const [priority, setPriority] = useState('Normal');
-    const [showExtras, setShowExtras] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(false);
+    const calendarRef = useRef(null);
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (containerRef.current && !containerRef.current.contains(event.target)) {
+                // Đảm bảo không thu gọn khi click vào popup calendar của PrimeReact (nếu nó append vào ngoài root)
+                const isOverlay = event.target.closest('.p-datepicker');
+                if (!isOverlay) {
+                    setIsExpanded(false);
+                    // Clear the form like when submitting
+                    setTitle('');
+                    setDescription('');
+                    setDueDate(null);
+                    setPriority('Normal');
+                }
+            }
+        };
+
+        if (isExpanded) {
+            document.addEventListener('mousedown', handleClickOutside);
+        } else {
+            document.removeEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isExpanded]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!title.trim()) return;
+        const trimTitle = title.trim();
+        if (!isExpanded || trimTitle.length < 3 || trimTitle.length > 100) return;
+
+        const formatDate = (date) => {
+            const d = new Date(date);
+            let month = '' + (d.getMonth() + 1);
+            let day = '' + d.getDate();
+            const year = d.getFullYear();
+
+            if (month.length < 2) month = '0' + month;
+            if (day.length < 2) day = '0' + day;
+
+            return [year, month, day].join('-');
+        };
 
         const data = {
-            title: title.trim(),
+            title: trimTitle,
             description: description.trim() || null,
-            due_date: dueDate ? new Date(dueDate).toISOString() : null,
+            due_date: dueDate ? formatDate(dueDate) : null,
             priority: priority,
         };
 
@@ -25,13 +68,15 @@ const TodoInput = ({ onAdd, isAdding }) => {
         // Reset Form
         setTitle('');
         setDescription('');
-        setDueDate('');
+        setDueDate(null);
         setPriority('Normal');
-        setShowExtras(false);
+        setIsExpanded(false);
     };
 
+    const isAddDisabled = !isExpanded || title.trim().length < 3 || title.trim().length > 100 || isAdding;
+
     return (
-        <div className="input-container">
+        <div className="input-container" ref={containerRef}>
             <form onSubmit={handleSubmit}>
                 <div className="input-group">
                     <input
@@ -39,70 +84,67 @@ const TodoInput = ({ onAdd, isAdding }) => {
                         placeholder="Tiêu đề công việc... (3 đến 100 kí tự)"
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
+                        onFocus={() => setIsExpanded(true)}
                         disabled={isAdding}
-                        autoFocus
                     />
+
                     <button
-                        type="button"
-                        className="extras-toggle-btn"
-                        onClick={() => setShowExtras(!showExtras)}
-                        title="Thêm deadline & ưu tiên"
+                        type="submit"
+                        id="add-btn"
+                        title="Thêm công việc"
+                        disabled={isAddDisabled}
                     >
-                        <FaCalendarAlt size={14} />
-                    </button>
-                    <button type="submit" id="add-btn" title="Thêm công việc" disabled={!title.trim() || isAdding}>
                         <FaPlus />
                     </button>
                 </div>
-                <textarea
-                    id="todo-desc-input"
-                    placeholder="Mô tả chi tiết (tùy chọn)..."
-                    rows="2"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    disabled={isAdding}
-                ></textarea>
 
-                {/* Priority Pill Selector — always visible */}
-                <div className="priority-selector">
-                    <span className="priority-label">Ưu tiên:</span>
-                    <div className="priority-pills">
-                        {PRIORITY_OPTIONS.map((opt) => (
-                            <button
-                                key={opt.value}
-                                type="button"
-                                className={`priority-pill ${priority === opt.value ? 'active' : ''}`}
-                                style={{
-                                    '--pill-color': opt.color,
-                                    background: priority === opt.value ? opt.color : opt.color + '15',
-                                    color: priority === opt.value ? '#fff' : opt.color,
-                                    borderColor: opt.color,
-                                }}
-                                onClick={() => setPriority(opt.value)}
-                            >
-                                {opt.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                {isExpanded && (
+                    <div className="expanded-ui" style={{ marginTop: '10px', animation: 'fadeIn 0.3s ease-in-out' }}>
+                        <textarea
+                            id="todo-desc-input"
+                            placeholder="Mô tả chi tiết (tùy chọn)..."
+                            rows="2"
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            disabled={isAdding}
+                        ></textarea>
 
-                {showExtras && (
-                    <div className="input-extras">
+                        {/* Priority Pill Selector */}
+                        <div className="priority-selector">
+                            <div className="priority-pills">
+                                {PRIORITY_OPTIONS.map((opt) => (
+                                    <button
+                                        key={opt.value}
+                                        type="button"
+                                        className={`priority-pill ${priority === opt.value ? 'active' : ''}`}
+                                        style={{
+                                            '--pill-color': opt.color,
+                                            background: priority === opt.value ? opt.color : opt.color + '15',
+                                            color: priority === opt.value ? '#fff' : opt.color,
+                                            borderColor: opt.color,
+                                        }}
+                                        onClick={() => setPriority(opt.value)}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         {/* Date Picker */}
-                        <div className="input-date-row">
-                            <FaCalendarAlt size={12} className="input-icon" />
-                            <input
-                                type="datetime-local"
-                                className="date-input"
+                        <div style={{ width: '100%' }}>
+                            <Calendar
+                                ref={calendarRef}
                                 value={dueDate}
-                                onChange={(e) => setDueDate(e.target.value)}
-                                min={new Date().toISOString().slice(0, 16)}
+                                onChange={(e) => {
+                                    setDueDate(e.value);
+                                }}
+                                minDate={new Date()}
+                                showTime={false}
+                                dateFormat="yy-mm-dd"
+                                placeholder="YYYY-MM-DD"
+                                showClear
                             />
-                            {dueDate && (
-                                <button type="button" className="clear-date-btn" onClick={() => setDueDate('')}>
-                                    ✕
-                                </button>
-                            )}
                         </div>
                     </div>
                 )}

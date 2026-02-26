@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FaCheck, FaTrash, FaPen, FaTimes, FaUndo, FaClock, FaStar } from 'react-icons/fa';
-import { PRIORITY_OPTIONS, getPriorityColor } from '../api/todoApi';
+import { PRIORITY_OPTIONS, getPriorityColor, getPriorityLabel } from '../api/todoApi';
 
 const formatDate = (dateStr) => {
     if (!dateStr) return null;
@@ -134,7 +134,7 @@ const TodoItem = ({ todo, onToggle, onDelete, onUpdate }) => {
                                     borderColor: priorityColor,
                                 }}
                             >
-                                {todo.priority || 'Normal'}
+                                {getPriorityLabel(todo.priority)}
                             </span>
                             {todo.productivity_score !== null && todo.productivity_score !== undefined && (
                                 <span className="score-badge">

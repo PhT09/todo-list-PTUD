@@ -51,6 +51,7 @@ const RegisterForm = ({ onSwitch }) => {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     autoFocus
+                    style={{ width: '100%' }}
                 />
                 <input
                     type="password"
@@ -58,6 +59,7 @@ const RegisterForm = ({ onSwitch }) => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    style={{ width: '100%' }}
                 />
                 <input
                     type="password"
@@ -65,6 +67,7 @@ const RegisterForm = ({ onSwitch }) => {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
+                    style={{ width: '100%' }}
                 />
                 <button type="submit" className="auth-btn" disabled={loading}>
                     {loading ? "Đang xử lý..." : "Đăng Ký"}

@@ -4,22 +4,23 @@ import { FaSearch } from 'react-icons/fa';
 const FilterSortBar = ({ currentFilter, onFilterChange, searchTerm, onSearchChange, sortOrder, onSortChange }) => {
     return (
         <div className="actions-bar">
-            {/* Search Input */}
-            <div className="search-group" style={{ flex: 1, position: 'relative' }}>
+            {/* Search and Sort Group */}
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center', width: '100%' }}>
+                {/* Search Input */}
                 <input
                     type="text"
-                    style={{ width: '100%' }}
+                    style={{ width: '75%' }}
                     placeholder="Tìm kiếm công việc..."
                     value={searchTerm}
                     onChange={(e) => onSearchChange(e.target.value)}
                 />
-            </div>
 
-            {/* Sort Select */}
-            <select id="sort-order" value={sortOrder} onChange={(e) => onSortChange(e.target.value)}>
-                <option value="desc">Mới nhất</option>
-                <option value="asc">Cũ nhất</option>
-            </select>
+                {/* Sort Select */}
+                <select id="sort-order" style={{ width: '25%' }} value={sortOrder} onChange={(e) => onSortChange(e.target.value)}>
+                    <option value="desc">Mới nhất</option>
+                    <option value="asc">Cũ nhất</option>
+                </select>
+            </div>
 
             {/* Filter Tabs */}
             <div className="filter-tabs">

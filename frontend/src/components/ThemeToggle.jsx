@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { FaMoon, FaSun } from 'react-icons/fa';
+import { Button } from 'primereact/button';
 
 const ThemeToggle = () => {
     const [isDark, setIsDark] = useState(false);
 
     useEffect(() => {
-        // Check localStorage or system preference
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'dark') {
             setIsDark(true);
@@ -29,14 +28,21 @@ const ThemeToggle = () => {
     };
 
     return (
-        <button
-            className="theme-toggle"
+        <Button
+            icon={isDark ? 'pi pi-sun' : 'pi pi-moon'}
+            rounded
+            text
             onClick={toggleTheme}
             aria-label="Toggle Dark Mode"
-            title={isDark ? "Chuyển sang chế độ sáng" : "Chuyển sang chế độ tối"}
-        >
-            {isDark ? <FaSun size={18} className="theme-icon sun" /> : <FaMoon size={18} className="theme-icon moon" />}
-        </button>
+            className="absolute right-0 top-1/2 -translate-y-1/2"
+            style={{
+                width: '2.5rem',
+                height: '2.5rem',
+                color: 'var(--color-text-main)',
+                background: 'var(--color-card-bg)',
+                border: '1px solid var(--color-glass-border)',
+            }}
+        />
     );
 };
 

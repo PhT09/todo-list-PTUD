@@ -8,11 +8,11 @@ import PaginationBar from './components/PaginationBar'
 import LoginForm from './components/LoginForm'
 import RegisterForm from './components/RegisterForm'
 import Dashboard from './components/Dashboard'
-import { todoApi } from './api/todoApi'
-import { FaSignOutAlt } from 'react-icons/fa'
-import './index.css'
-
 import TrashManager from './components/TrashManager'
+import { todoApi } from './api/todoApi'
+import { Button } from 'primereact/button'
+import { Badge } from 'primereact/badge'
+import { ProgressSpinner } from 'primereact/progressspinner'
 
 // ────────────────────────────────────────────
 // Main Todo App (shown when authenticated)
@@ -54,7 +54,6 @@ function TodoApp() {
     // Data Fetching
     const fetchTodos = async () => {
         try {
-            // Smart filters (overdue / today) use dedicated endpoints
             if (currentFilter === 'overdue') {
                 const res = await todoApi.getOverdue();
                 setTodos(res.data);
@@ -123,10 +122,8 @@ function TodoApp() {
         setTodos(prev => prev.map(t => t.id === id ? { ...t, is_done: newStatus } : t));
         try {
             const res = await todoApi.update(id, { is_done: newStatus });
-            // Re-sync with server data (includes productivity_score, completed_at)
             setTodos(prev => prev.map(t => t.id === id ? res.data : t));
 
-            // If auto-trashed, the item will have deleted_at set — remove from list
             if (res.data.deleted_at) {
                 setTodos(prev => prev.filter(t => t.id !== id));
                 setTotalItems(prev => Math.max(0, prev - 1));
@@ -185,49 +182,57 @@ function TodoApp() {
 
     const showPagination = currentFilter !== 'overdue' && currentFilter !== 'today';
 
-    // ── Grid Layout View ──
     return (
         <>
-            <div className={`container ${showDashboard ? 'dashboard-view' : ''} app-grid-container`}>
+            <div className={`glass-bg rounded-2xl shadow-glass p-4 w-[95%] max-w-[1200px] mx-auto my-5 transition-all duration-300 ${showDashboard ? 'max-w-[1400px]' : ''}`}>
 
-                {/* Header: Title & Theme Toggle */}
-                <header className="app-header">
+                {/* Header */}
+                <header className="relative text-center mb-4 pb-3 border-b border-[var(--color-glass-border)]">
                     <div>
-                        <h1>Todo App</h1>
-                        <p>Quản lý công việc hiệu quả</p>
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
+                            Todo App
+                        </h1>
+                        <p className="text-light text-sm">Quản lý công việc hiệu quả</p>
                     </div>
                     <ThemeToggle />
                 </header>
 
                 {showDashboard ? (
-                    <div className="dashboard-wrapper">
+                    <div>
                         <Dashboard onBack={() => setShowDashboard(false)} />
                     </div>
                 ) : (
-                    <div className="main-grid">
-                        {/* Left Column: Controls */}
-                        <aside className="left-column">
-                            <div className="user-controls-section">
-                                <div className="user-info">
-                                    <span className="user-email">{user?.email}</span>
-                                        <button
-                                            className="nav-btn dashboard-nav-btn"
-                                            onClick={() => setShowDashboard(true)}
-                                        >
-                                            Thống kê
-                                        </button>
-                                        <button
-                                            className="nav-btn trash-nav-btn"
-                                            onClick={() => setIsTrashOpen(true)}
-                                        >
-                                            Thùng Rác {trashCount > 0 && <span className="badge">{trashCount}</span>}
-                                        </button>
-                                    <button className="logout-btn-small" onClick={logout} title="Đăng xuất">
-                                        <FaSignOutAlt />
-                                    </button>
-
+                    <div className="grid grid-cols-[minmax(0,1fr)_700px] gap-4 items-start main-grid-layout max-md:grid-cols-1">
+                        {/* Left Column */}
+                        <aside className="flex flex-col gap-2.5">
+                            <div className="p-1">
+                                <div className="flex justify-between items-center font-semibold text-[0.95rem] gap-2.5">
+                                    <span className="text-main text-sm truncate">{user?.email}</span>
+                                    <Button
+                                        label="Thống kê"
+                                        onClick={() => setShowDashboard(true)}
+                                        severity="secondary"
+                                        outlined
+                                        size="small"
+                                    />
+                                    <Button
+                                        label="Thùng Rác"
+                                        onClick={() => setIsTrashOpen(true)}
+                                        severity="secondary"
+                                        outlined
+                                        size="small"
+                                        badge={trashCount > 0 ? String(trashCount) : null}
+                                        badgeSeverity="danger"
+                                        className="flex items-center gap-1"
+                                    />
+                                    <Button
+                                        icon="pi pi-sign-out"
+                                        onClick={logout}
+                                        severity="danger"
+                                        text
+                                        rounded
+                                    />
                                 </div>
-
                             </div>
 
                             <TodoInput onAdd={handleAdd} />
@@ -242,11 +247,11 @@ function TodoApp() {
                             />
                         </aside>
 
-                        {/* Right Column: List & Pagination */}
-                        <main className="right-column">
-                            <div className="list-header">
-                                <h3>Danh sách công việc</h3>
-                                <span className="items-count">{totalItems} task</span>
+                        {/* Right Column */}
+                        <main className="flex flex-col gap-2 min-h-[500px] card-bg py-3 px-6 rounded-2xl border border-[var(--color-glass-border)]">
+                            <div className="flex justify-between items-center pb-2 border-b border-[var(--color-glass-border)] mb-0.5">
+                                <h3 className="text-lg text-main font-semibold">Danh sách công việc</h3>
+                                <Badge value={`${totalItems} task`} severity="info" />
                             </div>
 
                             <TodoList
@@ -256,7 +261,7 @@ function TodoApp() {
                                 onUpdate={handleUpdateContent}
                             />
 
-                            <div className="list-footer">
+                            <div className="flex justify-between items-center border-t border-[var(--color-glass-border)] mt-auto">
                                 {showPagination && (
                                     <PaginationBar
                                         currentPage={currentPage}
@@ -267,17 +272,20 @@ function TodoApp() {
                                 )}
 
                                 {todos.some(t => t.is_done) && (
-                                    <button id="clear-completed" onClick={handleClearCompleted}>
-                                        Xóa đã xong
-                                    </button>
+                                    <Button
+                                        label="Xóa đã xong"
+                                        onClick={handleClearCompleted}
+                                        severity="danger"
+                                        text
+                                        size="small"
+                                    />
                                 )}
                             </div>
                         </main>
                     </div>
                 )}
-
-
             </div>
+
             <TrashManager
                 isOpen={isTrashOpen}
                 onClose={() => setIsTrashOpen(false)}
@@ -295,13 +303,15 @@ function AuthPage() {
     const [isLogin, setIsLogin] = useState(true);
 
     return (
-        <div className="auth-container">
-            <div className="auth-header-row">
+        <div className="pt-16 px-4 flex flex-col items-center">
+            <div className="absolute top-5 right-5">
                 <ThemeToggle />
             </div>
-            <div className="auth-header">
-                <h1 style={{ textAlign: 'center' }}>Todo App</h1>
-                <p style={{ textAlign: 'center', marginBottom: '10px' }}>Quản lý công việc hiệu quả</p>
+            <div className="text-center mb-4">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
+                    Todo App
+                </h1>
+                <p className="text-light text-sm mt-1">Quản lý công việc hiệu quả</p>
             </div>
             {isLogin
                 ? <LoginForm onSwitch={() => setIsLogin(false)} />
@@ -312,16 +322,16 @@ function AuthPage() {
 }
 
 // ────────────────────────────────────────────
-// Root App (decides Auth vs Todo)
+// Root App
 // ────────────────────────────────────────────
 function AppContent() {
     const { token, isLoading } = useAuth();
 
     if (isLoading) {
         return (
-            <div className="loading-screen">
-                <div className="spinner"></div>
-                <p>Đang tải...</p>
+            <div className="flex flex-col items-center justify-center min-h-screen gap-3">
+                <ProgressSpinner style={{ width: '40px', height: '40px' }} />
+                <p className="text-light">Đang tải...</p>
             </div>
         );
     }

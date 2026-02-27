@@ -18,17 +18,17 @@ const COLORS = {
 };
 
 const PRIORITY_COLORS = {
-    'Ưu tiên': '#ef4444',
-    'Quan trọng': '#f97316',
-    'Cần thiết': '#3b82f6',
-    'Bình thường': '#94a3b8',
+    '  Ưu tiên': '#ef4444',
+    '  Quan trọng': '#f97316',
+    '  Cần thiết': '#3b82f6',
+    '  Bình thường': '#94a3b8',
 };
 
 const PRIORITY_MAPPING = {
-    Priority: 'Ưu tiên',
-    Important: 'Quan trọng',
-    Necessary: 'Cần thiết',
-    Normal: 'Bình thường',
+    Priority: '  Ưu tiên',
+    Important: '  Quan trọng',
+    Necessary: '  Cần thiết',
+    Normal: '  Bình thường',
 };
 
 // ── Shared tooltip / grid options ──
@@ -74,7 +74,7 @@ export function buildWorkloadTrendData(workloadTrend) {
             labels,
             datasets: [
                 {
-                    label: 'Việc mới',
+                    label: '  Việc mới',
                     data: workloadTrend.map(d => d.new_tasks),
                     borderColor: COLORS.sky,
                     backgroundColor: 'rgba(14, 165, 233, 0.1)',
@@ -87,7 +87,7 @@ export function buildWorkloadTrendData(workloadTrend) {
                     pointBorderWidth: 2,
                 },
                 {
-                    label: 'Đã hoàn thành',
+                    label: '  Đã hoàn thành',
                     data: workloadTrend.map(d => d.completed_tasks),
                     borderColor: COLORS.emerald,
                     backgroundColor: 'rgba(16, 185, 129, 0.1)',
@@ -166,7 +166,7 @@ export function buildPunctualityData(punctuality) {
             labels,
             datasets: [
                 {
-                    label: 'Sớm/Đúng hạn',
+                    label: '  Sớm/Đúng hạn',
                     data: punctuality.map(d => d.on_time),
                     backgroundColor: 'rgba(16, 185, 129, 0.8)',
                     borderRadius: 4,
@@ -174,7 +174,7 @@ export function buildPunctualityData(punctuality) {
                     categoryPercentage: 0.6,
                 },
                 {
-                    label: 'Trễ hạn',
+                    label: '  Trễ hạn',
                     data: punctuality.map(d => d.overdue),
                     backgroundColor: 'rgba(244, 63, 94, 0.8)',
                     borderRadius: 4,
@@ -212,7 +212,7 @@ export function buildScoreTrendData(scoreTrend) {
             labels,
             datasets: [
                 {
-                    label: 'Điểm trung bình',
+                    label: '  Điểm trung bình',
                     data: scoreTrend.map(d => d.avg_score),
                     borderColor: COLORS.violet,
                     backgroundColor: 'rgba(139, 92, 246, 0.15)',
@@ -259,7 +259,7 @@ export function buildWeekdayActivityData(weekdayActivity) {
             labels: days,
             datasets: [
                 {
-                    label: 'Đã hoàn thành',
+                    label: '  Đã hoàn thành',
                     data: values,
                     backgroundColor: values.map(v =>
                         `rgba(99, 102, 241, ${0.3 + (v / maxVal) * 0.7})`
@@ -298,7 +298,7 @@ export function buildLeadTimeData(leadTime) {
             labels,
             datasets: [
                 {
-                    label: 'Số ngày trung bình',
+                    label: '  Số ngày trung bình',
                     data: leadTime.map(d => d.avg_days),
                     backgroundColor: 'rgba(245, 158, 11, 0.7)',
                     borderRadius: 6,
@@ -336,7 +336,7 @@ export function buildBacklogData(backlog) {
             labels,
             datasets: [
                 {
-                    label: 'Số ngày tồn đọng',
+                    label: '  Số ngày tồn đọng',
                     data: backlog.map(d => d.backlog),
                     borderColor: COLORS.rose,
                     backgroundColor: 'rgba(244, 63, 94, 0.12)',

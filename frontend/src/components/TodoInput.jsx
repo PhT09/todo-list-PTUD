@@ -1,25 +1,24 @@
 import { useState, useRef, useEffect } from 'react';
-import { FaPlus } from 'react-icons/fa';
+import { InputText } from 'primereact/inputtext';
+import { InputTextarea } from 'primereact/inputtextarea';
 import { Calendar } from 'primereact/calendar';
+import { Button } from 'primereact/button';
 import { PRIORITY_OPTIONS } from '../api/todoApi';
 
 const TodoInput = ({ onAdd, isAdding }) => {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
-    const [dueDate, setDueDate] = useState('');
+    const [dueDate, setDueDate] = useState(null);
     const [priority, setPriority] = useState('Normal');
     const [isExpanded, setIsExpanded] = useState(false);
-    const calendarRef = useRef(null);
     const containerRef = useRef(null);
 
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (containerRef.current && !containerRef.current.contains(event.target)) {
-                // Đảm bảo không thu gọn khi click vào popup calendar của PrimeReact (nếu nó append vào ngoài root)
                 const isOverlay = event.target.closest('.p-datepicker');
                 if (!isOverlay) {
                     setIsExpanded(false);
-                    // Clear the form like when submitting
                     setTitle('');
                     setDescription('');
                     setDueDate(null);
@@ -49,10 +48,8 @@ const TodoInput = ({ onAdd, isAdding }) => {
             let month = '' + (d.getMonth() + 1);
             let day = '' + d.getDate();
             const year = d.getFullYear();
-
             if (month.length < 2) month = '0' + month;
             if (day.length < 2) day = '0' + day;
-
             return [year, month, day].join('-');
         };
 
@@ -64,8 +61,6 @@ const TodoInput = ({ onAdd, isAdding }) => {
         };
 
         onAdd(data);
-
-        // Reset Form
         setTitle('');
         setDescription('');
         setDueDate(null);
@@ -76,74 +71,72 @@ const TodoInput = ({ onAdd, isAdding }) => {
     const isAddDisabled = !isExpanded || title.trim().length < 3 || title.trim().length > 100 || isAdding;
 
     return (
-        <div className="input-container" ref={containerRef}>
+        <div ref={containerRef} className="card-bg p-3 rounded-xl border border-[var(--color-glass-border)]">
             <form onSubmit={handleSubmit}>
-                <div className="input-group">
-                    <input
-                        type="text"
+                <div className="flex gap-2">
+                    <InputText
                         placeholder="Tiêu đề công việc... (3 đến 100 kí tự)"
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         onFocus={() => setIsExpanded(true)}
                         disabled={isAdding}
+                        className="flex-1"
                     />
-
-                    <button
+                    <Button
                         type="submit"
-                        id="add-btn"
-                        title="Thêm công việc"
+                        icon="pi pi-plus"
                         disabled={isAddDisabled}
-                    >
-                        <FaPlus />
-                    </button>
+                        className={`shrink-0 ${!isAddDisabled ? 'bg-blue-600 border-blue-600' : ''}`}
+                        style={{ borderRadius: '10px' }}
+                    />
                 </div>
 
                 {isExpanded && (
-                    <div className="expanded-ui" style={{ marginTop: '10px', animation: 'fadeIn 0.3s ease-in-out' }}>
-                        <textarea
-                            id="todo-desc-input"
+                    <div className="animate-fade-in flex flex-col gap-2 mt-2">
+                        <InputTextarea
                             placeholder="Mô tả chi tiết (tùy chọn)..."
-                            rows="2"
+                            rows={2}
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             disabled={isAdding}
-                        ></textarea>
+                            className="w-full"
+                            autoResize
+                        />
 
-                        {/* Priority Pill Selector */}
-                        <div className="priority-selector">
-                            <div className="priority-pills">
-                                {PRIORITY_OPTIONS.map((opt) => (
-                                    <button
-                                        key={opt.value}
-                                        type="button"
-                                        className={`priority-pill ${priority === opt.value ? 'active' : ''}`}
-                                        style={{
-                                            '--pill-color': opt.color,
-                                            background: priority === opt.value ? opt.color : opt.color + '15',
-                                            color: priority === opt.value ? '#fff' : opt.color,
-                                            borderColor: opt.color,
-                                        }}
-                                        onClick={() => setPriority(opt.value)}
-                                    >
-                                        {opt.label}
-                                    </button>
-                                ))}
-                            </div>
+                        {/* Priority Pills using PrimeReact Buttons */}
+                        <div className="flex gap-1.5 flex-wrap py-1 justify-between">
+                            {PRIORITY_OPTIONS.map((opt) => (
+                                <Button
+                                    key={opt.value}
+                                    type="button"
+                                    label={opt.label}
+                                    size="small"
+                                    rounded
+                                    onClick={() => setPriority(opt.value)}
+                                    className="text-xs"
+                                    style={{
+                                        background: priority === opt.value ? opt.color : opt.color + '15',
+                                        color: priority === opt.value ? '#fff' : opt.color,
+                                        borderColor: opt.color,
+                                        borderWidth: '1.5px',
+                                        padding: '0.25rem 0.75rem',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 600,
+                                    }}
+                                />
+                            ))}
                         </div>
 
                         {/* Date Picker */}
-                        <div style={{ width: '100%' }}>
+                        <div className="w-full">
                             <Calendar
-                                ref={calendarRef}
                                 value={dueDate}
-                                onChange={(e) => {
-                                    setDueDate(e.value);
-                                }}
+                                onChange={(e) => setDueDate(e.value)}
                                 minDate={new Date()}
-                                showTime={false}
                                 dateFormat="yy-mm-dd"
-                                placeholder="YYYY-MM-DD"
-                                showClear
+                                placeholder="Chọn ngày hết hạn (tùy chọn)"
+                                showIcon
+                                className="w-full"
                             />
                         </div>
                     </div>
@@ -152,4 +145,5 @@ const TodoInput = ({ onAdd, isAdding }) => {
         </div>
     );
 };
+
 export default TodoInput;

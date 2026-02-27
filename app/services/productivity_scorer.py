@@ -109,7 +109,6 @@ def compute_productivity(
         }
     """
     actual_duration = _days_between(created_at, completed_at)
-    estimated_duration = _days_between(created_at, due_date)
 
     # If no due_date, we can only compute the weight portion
     if due_date is None:
@@ -122,6 +121,8 @@ def compute_productivity(
             "actual_duration": actual_duration,
             "estimated_duration": None,
         }
+
+    estimated_duration = _days_between(created_at, due_date)
 
     # Auto-Trash Logic: actual >= 2 * estimated
     if estimated_duration > 0 and actual_duration >= 2 * estimated_duration:

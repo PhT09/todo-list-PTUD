@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { todoApi } from '../api/todoApi';
-import { FaTimes, FaPlus } from 'react-icons/fa';
+import { InputText } from 'primereact/inputtext';
+import { Button } from 'primereact/button';
+import { Chip } from 'primereact/chip';
 
 const PRESET_COLORS = [
     '#ef4444', '#f97316', '#eab308', '#22c55e',
@@ -10,7 +12,7 @@ const PRESET_COLORS = [
 
 const TagManager = ({ tags, onTagsChange }) => {
     const [newTagName, setNewTagName] = useState('');
-    const [newTagColor, setNewTagColor] = useState('#6366f1');
+    const [newTagColor, setNewTagColor] = useState('#3b82f6');
     const [showForm, setShowForm] = useState(false);
 
     const handleCreate = async (e) => {
@@ -36,54 +38,76 @@ const TagManager = ({ tags, onTagsChange }) => {
     };
 
     return (
-        <div className="tag-manager">
-            <div className="tag-manager-header">
-                <span className="tag-manager-title">🏷️ Tags</span>
-                <button
-                    className="tag-add-btn"
+        <div className="card-bg p-3 rounded-xl border border-[var(--color-glass-border)]">
+            <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-main flex items-center gap-1.5">
+                    <i className="pi pi-tag text-[var(--color-primary)]"></i> Tags
+                </span>
+                <Button
+                    icon={showForm ? 'pi pi-times' : 'pi pi-plus'}
+                    rounded
+                    text
+                    size="small"
                     onClick={() => setShowForm(!showForm)}
-                    title="Thêm tag mới"
-                >
-                    <FaPlus size={10} />
-                </button>
+                    tooltip="Thêm tag mới"
+                    tooltipOptions={{ position: 'top' }}
+                />
             </div>
 
             {showForm && (
-                <form className="tag-create-form" onSubmit={handleCreate}>
-                    <input
-                        type="text"
+                <form className="flex flex-col gap-2 mb-3 animate-fade-in" onSubmit={handleCreate}>
+                    <InputText
                         placeholder="Tên tag..."
                         value={newTagName}
                         onChange={(e) => setNewTagName(e.target.value)}
-                        className="tag-name-input"
                         maxLength={50}
                         autoFocus
+                        className="w-full"
                     />
-                    <div className="color-picker-row">
+                    <div className="flex gap-1.5 flex-wrap">
                         {PRESET_COLORS.map((c) => (
-                            <button
+                            <Button
                                 key={c}
                                 type="button"
-                                className={`color-dot ${newTagColor === c ? 'active' : ''}`}
-                                style={{ background: c }}
+                                rounded
                                 onClick={() => setNewTagColor(c)}
+                                style={{
+                                    background: c,
+                                    width: '1.5rem',
+                                    height: '1.5rem',
+                                    minWidth: '1.5rem',
+                                    padding: 0,
+                                    border: newTagColor === c ? '2.5px solid var(--color-text-main)' : '2px solid transparent',
+                                    boxShadow: newTagColor === c ? `0 0 0 1px ${c}` : 'none',
+                                }}
                             />
                         ))}
                     </div>
-                    <button type="submit" className="tag-create-submit">Tạo</button>
+                    <Button
+                        type="submit"
+                        label="Tạo"
+                        icon="pi pi-check"
+                        size="small"
+                        className="w-full"
+                    />
                 </form>
             )}
 
-            <div className="tag-list-manager">
+            <div className="flex flex-wrap gap-1.5">
                 {tags.map((tag) => (
-                    <span key={tag.id} className="tag-pill" style={{ background: tag.color + '20', color: tag.color, borderColor: tag.color }}>
-                        {tag.name}
-                        <button className="tag-remove-btn" onClick={() => handleDelete(tag.id)}>
-                            <FaTimes size={8} />
-                        </button>
-                    </span>
+                    <Chip
+                        key={tag.id}
+                        label={tag.name}
+                        removable
+                        onRemove={() => handleDelete(tag.id)}
+                        style={{
+                            background: tag.color + '20',
+                            color: tag.color,
+                            border: `1px solid ${tag.color}`,
+                        }}
+                    />
                 ))}
-                {tags.length === 0 && <span className="tag-empty">Chưa có tag nào</span>}
+                {tags.length === 0 && <span className="text-xs text-light">Chưa có tag nào</span>}
             </div>
         </div>
     );

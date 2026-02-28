@@ -34,7 +34,6 @@ const RegisterForm = ({ onSwitch }) => {
             setSuccess('Đăng ký thành công! Chuyển sang đăng nhập...');
             setTimeout(() => onSwitch(), 1500);
         } catch (err) {
-            console.error('Register error:', err);
             const msg = err.response?.data?.detail || 'Đăng ký thất bại';
             setError(msg);
         } finally {

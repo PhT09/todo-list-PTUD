@@ -8,11 +8,6 @@ from ..repositories.todo_repository import TodoRepository
 from .productivity_scorer import compute_productivity
 
 
-def _make_naive(dt):
-    """Strip timezone info for consistent comparison with DB naive datetimes."""
-    if dt and dt.tzinfo is not None:
-        return dt.replace(tzinfo=None)
-    return dt
 
 
 def _enrich_todo(todo) -> dict:
@@ -33,7 +28,7 @@ def _enrich_todo(todo) -> dict:
         "is_overdue": (
             not todo.is_done
             and todo.due_date is not None
-            and todo.due_date < datetime.now(timezone.utc).replace(tzinfo=None)
+            and todo.due_date < datetime.now().date()
         ),
     }
     return data
@@ -71,11 +66,11 @@ class TodoService:
         )
 
     def create_todo(self, todo: TodoCreate, owner_id: int) -> dict:
-        # Validate: due_date must be in the future (after created_at which is ~now)
-        if todo.due_date is not None and _make_naive(todo.due_date) <= datetime.now(timezone.utc).replace(tzinfo=None):
+        # Validate: due_date must be today or in the future
+        if todo.due_date is not None and todo.due_date < datetime.now().date():
             raise HTTPException(
                 status_code=400,
-                detail="Deadline phải sau thời điểm hiện tại"
+                detail="Deadline không được nằm trong quá khứ"
             )
         new_todo = self.repo.create(todo, owner_id)
         return _enrich_todo(new_todo)
@@ -93,10 +88,10 @@ class TodoService:
             existing = self.repo.get_by_id(todo_id, owner_id)
             if not existing:
                 raise HTTPException(status_code=404, detail="Task không tồn tại hoặc không thuộc về bạn")
-            if _make_naive(new_due) <= existing.created_at:
+            if new_due < existing.created_at:
                 raise HTTPException(
                     status_code=400,
-                    detail="Deadline phải sau thời điểm tạo công việc"
+                    detail="Deadline không được trước ngày tạo công việc"
                 )
 
         # Check if task is being marked as done (is_done transitioning to True)
@@ -108,7 +103,7 @@ class TodoService:
 
             if not existing.is_done:
                 # Task is being completed — compute productivity score
-                now = datetime.now(timezone.utc).replace(tzinfo=None)
+                now = datetime.now().date()
                 priority = getattr(todo_update, 'priority', None)
                 if priority is not None:
                     priority_str = priority.value if hasattr(priority, 'value') else priority

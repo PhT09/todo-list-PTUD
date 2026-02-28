@@ -3,7 +3,7 @@ Analytics Service - Business logic for productivity analytics.
 Processes raw task data into chart-ready structures for the Productivity Dashboard.
 """
 
-from datetime import datetime, timedelta
+from datetime import date, timedelta
 from typing import List, Dict, Any
 from collections import defaultdict
 import math
@@ -17,7 +17,7 @@ WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 # ── Period helpers ──
 
-def _get_period_key(dt: datetime, unit: str) -> str:
+def _get_period_key(dt: date, unit: str) -> str:
     if unit == "week":
         iso_year, iso_week, _ = dt.isocalendar()
         return f"{iso_year}-W{iso_week:02d}"
@@ -25,7 +25,7 @@ def _get_period_key(dt: datetime, unit: str) -> str:
         return dt.strftime("%Y-%m")
 
 
-def _generate_period_keys(start: datetime, end: datetime, unit: str) -> List[str]:
+def _generate_period_keys(start: date, end: date, unit: str) -> List[str]:
     keys = []
     current = start
     seen = set()
@@ -45,8 +45,8 @@ class AnalyticsService:
     def get_stats(
         self,
         owner_id: int,
-        start_date: datetime,
-        end_date: datetime,
+        start_date: date,
+        end_date: date,
         unit: str = "week",
     ) -> Dict[str, Any]:
         """
@@ -58,7 +58,7 @@ class AnalyticsService:
         # Compute previous period (same duration, immediately before start_date)
         duration = end_date - start_date
         prev_start = start_date - duration
-        prev_end = start_date - timedelta(seconds=1)
+        prev_end = start_date - timedelta(days=1)
 
         # ── Fetch data ──
         all_tasks = self.repo.get_all_tasks_in_range(owner_id, start_date, end_date)

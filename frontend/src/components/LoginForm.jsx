@@ -19,7 +19,6 @@ const LoginForm = ({ onSwitch }) => {
         try {
             await login(email, password);
         } catch (err) {
-            console.error('Login error:', err);
             const msg = err.response?.data?.detail || 'Đăng nhập thất bại';
             setError(msg);
         } finally {

@@ -19,8 +19,8 @@ const FilterSortBar = ({ currentFilter, onFilterChange, searchTerm, onSearchChan
     return (
         <div className="flex flex-col gap-3 justify-center">
             {/* Search + Sort */}
-            <div className="flex gap-3 items-center w-full">
-                <span className="p-input-icon-left flex-1">
+            <div className="flex flex-wrap gap-3 items-center w-full">
+                <span className="p-input-icon-left flex-1 min-w-[180px]">
                     <i className="pi pi-search" />
                     <InputText
                         placeholder="Tìm kiếm công việc..."
@@ -33,18 +33,20 @@ const FilterSortBar = ({ currentFilter, onFilterChange, searchTerm, onSearchChan
                     value={sortOrder}
                     options={sortOptions}
                     onChange={(e) => onSortChange(e.value)}
-                    className="w-[120px]"
+                    className="w-[120px] min-w-[110px]"
                 />
             </div>
 
-            {/* Filter Tabs - PrimeReact SelectButton */}
-            <SelectButton
-                value={currentFilter}
-                options={filterOptions}
-                onChange={(e) => e.value && onFilterChange(e.value)}
-                className="w-full"
-                allowEmpty={false}
-            />
+            {/* Filter Tabs */}
+            <div className="overflow-x-auto">
+                <SelectButton
+                    value={currentFilter}
+                    options={filterOptions}
+                    onChange={(e) => e.value && onFilterChange(e.value)}
+                    className="w-full"
+                    allowEmpty={false}
+                />
+            </div>
         </div>
     );
 };

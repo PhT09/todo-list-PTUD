@@ -17,7 +17,6 @@ import { Calendar } from 'primereact/calendar';
 import { Button } from 'primereact/button';
 import { SelectButton } from 'primereact/selectbutton';
 import { Card } from 'primereact/card';
-import { Message } from 'primereact/message';
 import { ProgressSpinner } from 'primereact/progressspinner';
 import { todoApi } from '../api/todoApi';
 import {
@@ -48,6 +47,31 @@ const unitOptions = [
     { label: 'Tháng', value: 'month' },
 ];
 
+// ── Reusable Chart Card ──
+const ChartCard = ({ title, children }) => (
+    <Card className="chart-card shadow-none border border-[var(--color-glass-border)] p-3">
+        <h3 className="text-sm font-semibold text-main mb-3">{title}</h3>
+        <div className="relative w-full h-[260px]">
+            {children}
+        </div>
+    </Card>
+);
+
+// ── Reusable KPI Card ──
+const KpiCard = ({ icon, iconClass, label, value }) => (
+    <Card className="chart-card shadow-none border border-[var(--color-glass-border)]">
+        <div className="flex items-center gap-3.5 m-2">
+            <div className={`flex shrink-0 items-center justify-center w-12 h-12 rounded-xl text-lg ${iconClass}`}>
+                <i className={icon}></i>
+            </div>
+            <div className="flex flex-col gap-0.5">
+                <span className="text-[0.6rem] font-medium uppercase tracking-wide text-light">{label}</span>
+                <span className="text-2xl font-bold leading-tight text-main">{value}</span>
+            </div>
+        </div>
+    </Card>
+);
+
 const Dashboard = ({ onBack }) => {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -59,18 +83,26 @@ const Dashboard = ({ onBack }) => {
     const [endDate, setEndDate] = useState(now);
     const [unit, setUnit] = useState('month');
 
+    const formatDate = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
     const fetchStats = async () => {
         setLoading(true);
         setError(null);
         try {
-            const startStr = startDate
-                ? new Date(startDate.getFullYear(), startDate.getMonth(), 1).toISOString()
-                : new Date(sixMonthsAgo.getFullYear(), sixMonthsAgo.getMonth(), 1).toISOString();
+            const startRaw = startDate
+                ? new Date(startDate.getFullYear(), startDate.getMonth(), 1)
+                : new Date(sixMonthsAgo.getFullYear(), sixMonthsAgo.getMonth(), 1);
+            const startStr = formatDate(startRaw);
 
-            let endStr = new Date().toISOString();
+            let endStr = formatDate(new Date());
             if (endDate) {
-                const endMonthLastDay = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0, 23, 59, 59);
-                endStr = endMonthLastDay.toISOString();
+                const endMonthLastDay = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0);
+                endStr = formatDate(endMonthLastDay);
             }
 
             const params = { start_date: startStr, end_date: endStr, unit };
@@ -100,23 +132,28 @@ const Dashboard = ({ onBack }) => {
         };
     }, [stats]);
 
+    // ── Shared header with back button ──
+    const DashboardHeader = () => (
+        <div className="flex items-center justify-center gap-3 mb-5">
+            <Button
+                icon="pi pi-arrow-left"
+                onClick={onBack}
+                severity="secondary"
+                outlined
+                size="small"
+                className="absolute left-4 z-10 border border-[var(--color-glass-border)]"
+            />
+            <h2 className="text-xl font-bold text-main flex items-center gap-2">
+                Productivity Report
+            </h2>
+        </div>
+    );
+
     if (loading) {
         return (
             <div className="w-full">
-                <div className="flex items-center justify-center gap-3 mb-5">
-                    <Button
-                        icon="pi pi-arrow-left"
-                        onClick={onBack}
-                        severity="secondary"
-                        outlined
-                        size="small"
-                        className="fixed left-4 z-10 border border-[var(--color-glass-border)]"
-                    />
-                    <h2 className="text-main text-xl font-bold flex items-center gap-2">
-                        Productivity Report
-                    </h2>
-                </div>
-                <div className="flex flex-col items-center justify-center py-16 gap-3 text-light">
+                <DashboardHeader />
+                <div className="flex flex-col items-center justify-center gap-3 py-16 text-light">
                     <ProgressSpinner style={{ width: '50px', height: '50px' }} />
                     <p>Đang tải dữ liệu...</p>
                 </div>
@@ -126,25 +163,12 @@ const Dashboard = ({ onBack }) => {
 
     return (
         <div className="w-full">
-            {/* Header */}
-            <div className="flex items-center justify-center gap-3 mb-5">
-                <Button
-                    icon="pi pi-arrow-left"
-                    onClick={onBack}
-                    severity="secondary"
-                    outlined
-                    size="small"
-                    className="fixed left-4 z-10 border border-[var(--color-glass-border)]"
-                />
-                <h2 className="text-main text-xl font-bold flex items-center gap-2">
-                    Productivity Report
-                </h2>
-            </div>
+            <DashboardHeader />
 
             {/* Filters */}
-            <div className="flex items-center justify-center gap-4 card-bg border border-[var(--color-glass-border)] rounded-xl p-3 mb-5 flex-wrap">
-                <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 text-sm text-light font-medium">
+            <div className="flex flex-wrap items-center justify-center gap-4 p-3 mb-5 card-bg rounded-xl max-sm:gap-2">
+                <div className="flex flex-wrap items-center gap-4 max-sm:gap-2">
+                    <label className="flex items-center gap-2 text-sm font-medium text-light">
                         Từ tháng:
                         <Calendar
                             view="month"
@@ -155,7 +179,7 @@ const Dashboard = ({ onBack }) => {
                             maxDate={endDate || new Date()}
                         />
                     </label>
-                    <label className="flex items-center gap-2 text-sm text-light font-medium">
+                    <label className="flex items-center gap-2 text-sm font-medium text-light">
                         Đến tháng:
                         <Calendar
                             view="month"
@@ -188,93 +212,42 @@ const Dashboard = ({ onBack }) => {
                 <>
                     {/* KPI Cards */}
                     <div className="grid grid-cols-3 gap-4 mb-5 max-md:grid-cols-1">
-                        <Card className="shadow-none border border-[var(--color-glass-border)]" style={{ background: 'var(--color-card-bg)', borderRadius: '14px' }}>
-                            <div className="flex items-center gap-3.5 m-2">
-                                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-lg shrink-0 bg-sky-500/15 text-sky-500">
-                                    <i className="pi pi-list"></i>
-                                </div>
-                                <div className="flex flex-col gap-0.5">
-                                    <span className="text-[0.6rem] text-light font-medium uppercase tracking-wide">Tổng số công việc</span>
-                                    <span className="text-2xl font-bold text-main leading-tight">{stats.kpi.total_tasks}</span>
-                                </div>
-                            </div>
-                        </Card>
-                        <Card className="shadow-none border border-[var(--color-glass-border)]" style={{ background: 'var(--color-card-bg)', borderRadius: '14px' }}>
-                            <div className="flex items-center gap-3.5 m-2">
-                                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-lg shrink-0 bg-emerald-500/15 text-emerald-500">
-                                    <i className="pi pi-check-circle"></i>
-                                </div>
-                                <div className="flex flex-col gap-0.5">
-                                    <span className="text-[0.6rem] text-light font-medium uppercase tracking-wide">Đã hoàn thành</span>
-                                    <span className="text-2xl font-bold text-main leading-tight">{stats.kpi.completed_tasks}</span>
-                                </div>
-                            </div>
-                        </Card>
-                        <Card className="shadow-none border border-[var(--color-glass-border)]" style={{ background: 'var(--color-card-bg)', borderRadius: '14px' }}>
-                            <div className="flex items-center gap-3.5 m-2">
-                                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-lg shrink-0 bg-blue-500/15 text-blue-500">
-                                    <i className="pi pi-star"></i>
-                                </div>
-                                <div className="flex flex-col gap-0.5">
-                                    <span className="text-[0.6rem] text-light font-medium uppercase tracking-wide">Điểm trung bình</span>
-                                    <span className="text-2xl font-bold text-main leading-tight">{stats.kpi.avg_score}</span>
-                                </div>
-                            </div>
-                        </Card>
+                        <KpiCard icon="pi pi-list" iconClass="bg-sky-500/15 text-sky-500" label="Tổng số công việc" value={stats.kpi.total_tasks} />
+                        <KpiCard icon="pi pi-check-circle" iconClass="bg-emerald-500/15 text-emerald-500" label="Đã hoàn thành" value={stats.kpi.completed_tasks} />
+                        <KpiCard icon="pi pi-star" iconClass="bg-blue-500/15 text-blue-500" label="Điểm trung bình" value={stats.kpi.avg_score} />
                     </div>
 
                     {/* Chart Row 1 */}
                     <div className="grid grid-cols-[6fr_4fr] gap-4 mb-4 max-md:grid-cols-1">
-                        <Card className="shadow-none border border-[var(--color-glass-border)] p-2" style={{ background: 'var(--color-card-bg)', borderRadius: '14px' }}>
-                            <h3 className="text-main text-sm font-semibold mb-3">Xu hướng công việc</h3>
-                            <div className="relative w-full h-[260px]">
-                                <Line data={charts.workload.data} options={charts.workload.options} />
-                            </div>
-                        </Card>
-                        <Card className="shadow-none border border-[var(--color-glass-border)] p-2" style={{ background: 'var(--color-card-bg)', borderRadius: '14px' }}>
-                            <h3 className="text-main text-sm font-semibold mb-3">Cơ cấu theo độ ưu tiên</h3>
-                            <div className="relative w-full h-[260px]">
-                                <Doughnut data={charts.priority.data} options={charts.priority.options} />
-                            </div>
-                        </Card>
+                        <ChartCard title="Xu hướng công việc">
+                            <Line data={charts.workload.data} options={charts.workload.options} />
+                        </ChartCard>
+                        <ChartCard title="Cơ cấu theo độ ưu tiên">
+                            <Doughnut data={charts.priority.data} options={charts.priority.options} />
+                        </ChartCard>
                     </div>
 
                     {/* Chart Row 2 */}
                     <div className="grid grid-cols-2 gap-4 mb-4 max-md:grid-cols-1">
-                        <Card className="shadow-none border border-[var(--color-glass-border)] p-2" style={{ background: 'var(--color-card-bg)', borderRadius: '14px' }}>
-                            <h3 className="text-main text-sm font-semibold mb-3">Đúng hạn / Trễ hạn</h3>
-                            <div className="relative w-full h-[260px]">
-                                <Bar data={charts.punctuality.data} options={charts.punctuality.options} />
-                            </div>
-                        </Card>
-                        <Card className="shadow-none border border-[var(--color-glass-border)] p-2" style={{ background: 'var(--color-card-bg)', borderRadius: '14px' }}>
-                            <h3 className="text-main text-sm font-semibold mb-3">Biến động điểm số</h3>
-                            <div className="relative w-full h-[260px]">
-                                <Line data={charts.score.data} options={charts.score.options} />
-                            </div>
-                        </Card>
+                        <ChartCard title="Đúng hạn / Trễ hạn">
+                            <Bar data={charts.punctuality.data} options={charts.punctuality.options} />
+                        </ChartCard>
+                        <ChartCard title="Biến động điểm số">
+                            <Line data={charts.score.data} options={charts.score.options} />
+                        </ChartCard>
                     </div>
 
                     {/* Chart Row 3 */}
-                    <div className="grid grid-cols-3 gap-4 max-md:grid-cols-1">
-                        <Card className="shadow-none border border-[var(--color-glass-border)] p-2" style={{ background: 'var(--color-card-bg)', borderRadius: '14px' }}>
-                            <h3 className="text-main text-sm font-semibold mb-3">Thứ trong tuần</h3>
-                            <div className="relative w-full h-[260px]">
-                                <Bar data={charts.weekday.data} options={charts.weekday.options} />
-                            </div>
-                        </Card>
-                        <Card className="shadow-none border border-[var(--color-glass-border)] p-2" style={{ background: 'var(--color-card-bg)', borderRadius: '14px' }}>
-                            <h3 className="text-main text-sm font-semibold mb-3">Thời gian xử lý trung bình</h3>
-                            <div className="relative w-full h-[260px]">
-                                <Bar data={charts.leadTime.data} options={charts.leadTime.options} />
-                            </div>
-                        </Card>
-                        <Card className="shadow-none border border-[var(--color-glass-border)] p-2" style={{ background: 'var(--color-card-bg)', borderRadius: '14px' }}>
-                            <h3 className="text-main text-sm font-semibold mb-3">Thời gian chờ</h3>
-                            <div className="relative w-full h-[260px]">
-                                <Line data={charts.backlog.data} options={charts.backlog.options} />
-                            </div>
-                        </Card>
+                    <div className="grid grid-cols-3 gap-4 max-md:grid-cols-1 dashboard-grid-3">
+                        <ChartCard title="Thứ trong tuần">
+                            <Bar data={charts.weekday.data} options={charts.weekday.options} />
+                        </ChartCard>
+                        <ChartCard title="Thời gian xử lý trung bình">
+                            <Bar data={charts.leadTime.data} options={charts.leadTime.options} />
+                        </ChartCard>
+                        <ChartCard title="Thời gian chờ">
+                            <Line data={charts.backlog.data} options={charts.backlog.options} />
+                        </ChartCard>
                     </div>
                 </>
             )}

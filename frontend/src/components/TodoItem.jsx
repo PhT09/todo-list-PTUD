@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Calendar } from 'primereact/calendar';
@@ -10,8 +10,7 @@ import { PRIORITY_OPTIONS, getPriorityColor, getPriorityLabel } from '../api/tod
 const formatDate = (dateStr) => {
     if (!dateStr) return null;
     const d = new Date(dateStr);
-    return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
-        + ' ' + d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
 const TodoItem = ({ todo, onToggle, onDelete, onUpdate }) => {
@@ -43,10 +42,18 @@ const TodoItem = ({ todo, onToggle, onDelete, onUpdate }) => {
             alert('Tiêu đề không được để trống!');
             return;
         }
+        const formatDateObj = (d) => {
+            if (!d) return null;
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
         onUpdate(todo.id, {
             title: editTitle.trim(),
             description: editDesc.trim() || null,
-            due_date: editDueDate ? editDueDate.toISOString() : null,
+            due_date: formatDateObj(editDueDate),
             priority: editPriority,
         });
         setIsEditing(false);
@@ -61,7 +68,7 @@ const TodoItem = ({ todo, onToggle, onDelete, onUpdate }) => {
 
     return (
         <li
-            className={`input-bg rounded-xl px-3.5 py-2.5 mb-2 flex justify-between items-center transition-all duration-300 border border-[var(--color-glass-border)] text-main hover:bg-[var(--color-card-hover)] hover:translate-x-0.5 hover:shadow-md ${todo.is_done ? 'opacity-60 bg-slate-100/10' : ''
+            className={`input-bg rounded-xl px-3.5 py-2.5 mb-2 flex justify-between items-center transition-all duration-300 text-main hover:bg-[var(--color-card-hover)] hover:translate-x-0.5 hover:shadow-md ${todo.is_done ? 'opacity-60 bg-slate-100/10' : ''
                 }`}
             style={{ borderLeft: `3px solid ${priorityColor}` }}
         >

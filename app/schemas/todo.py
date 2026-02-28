@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, ConfigDict
-from datetime import datetime
+from datetime import date
 from typing import Optional, List
 from enum import Enum
 
@@ -19,7 +19,7 @@ class TodoBase(BaseModel):
     title: str = Field(..., min_length=3, max_length=100)
     description: Optional[str] = None
     is_done: bool = False
-    due_date: Optional[datetime] = None
+    due_date: Optional[date] = None
     priority: PriorityEnum = PriorityEnum.NORMAL
 
 
@@ -35,19 +35,19 @@ class TodoUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=3, max_length=100)
     description: Optional[str] = None
     is_done: Optional[bool] = None
-    due_date: Optional[datetime] = None
+    due_date: Optional[date] = None
     priority: Optional[PriorityEnum] = None
 
 
 # Response Model
 class TodoResponse(TodoBase):
     id: int
-    created_at: datetime
-    updated_at: Optional[datetime] = None
+    created_at: date
+    updated_at: Optional[date] = None
     owner_id: int
     is_overdue: bool = False
-    deleted_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    deleted_at: Optional[date] = None
+    completed_at: Optional[date] = None
     productivity_score: Optional[float] = None
 
     model_config = ConfigDict(from_attributes=True)

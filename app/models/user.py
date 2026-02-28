@@ -1,10 +1,10 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
-from datetime import datetime, timezone
+from sqlalchemy import Column, Integer, String, Boolean, Date
+from datetime import datetime, timezone, date
 from ..core.database import Base
 
 
-def utc_now():
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+def current_date():
+    return datetime.now().date()
 
 
 class User(Base):
@@ -14,5 +14,5 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=utc_now)
+    created_at = Column(Date, default=current_date)
 

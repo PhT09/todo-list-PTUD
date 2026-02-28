@@ -52,7 +52,7 @@ class TodoRepository:
 
     def get_overdue(self, owner_id: int) -> List[Todo]:
         """Tasks past their due_date and NOT completed."""
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        now = datetime.now().date()
         return self.db.query(Todo).filter(
             Todo.owner_id == owner_id,
             Todo.is_done == False,
@@ -112,7 +112,7 @@ class TodoRepository:
         if not db_todo:
             return False
 
-        db_todo.deleted_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        db_todo.deleted_at = datetime.now().date()
         self.db.commit()
         return True
 

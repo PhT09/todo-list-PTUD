@@ -4,7 +4,7 @@ import { Message } from 'primereact/message';
 const TodoList = ({ todos, onToggle, onDelete, onUpdate }) => {
     if (todos.length === 0) {
         return (
-            <div className="h-[61vh] overflow-y-auto pr-1.5 scrollbar-thin flex items-center justify-center">
+            <div className="flex flex-1 min-h-0 items-center justify-center overflow-y-auto pr-1.5 scrollbar-thin">
                 <Message
                     severity="info"
                     text="Không có công việc nào"
@@ -15,7 +15,7 @@ const TodoList = ({ todos, onToggle, onDelete, onUpdate }) => {
     }
 
     return (
-        <ul className="h-[64vh] overflow-y-auto pr-1.5 list-none scrollbar-thin">
+        <ul className="flex-1 min-h-0 overflow-y-auto pr-1.5 list-none scrollbar-thin">
             {todos.map((todo) => (
                 <TodoItem
                     key={todo.id}
@@ -30,3 +30,4 @@ const TodoList = ({ todos, onToggle, onDelete, onUpdate }) => {
 };
 
 export default TodoList;
+

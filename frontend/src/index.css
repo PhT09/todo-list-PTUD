@@ -37,7 +37,7 @@
     }
 
     body {
-        font-family: 'Outfit', sans-serif;
+        font-family: 'Outfit', 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         min-height: 100vh;
         display: flex;
         justify-content: center;
@@ -422,6 +422,12 @@ body.dark-theme {
         box-shadow: var(--shadow-glass);
     }
 
+    .chart-card {
+        background: var(--color-card-bg);
+        border-radius: 14px;
+        border: none;
+    }
+
     .animate-fade-in {
         animation: fadeIn 0.3s ease-in-out;
     }
@@ -442,27 +448,53 @@ body.dark-theme {
 }
 
 /* ═══════════════════════════════════════════
-   Responsive Overrides
+   Input Icon Helpers
    ═══════════════════════════════════════════ */
-@media (max-width: 768px) {
-    .main-grid-layout {
-        grid-template-columns: 1fr !important;
-        gap: 1.5rem !important;
-    }
-}
-
 .p-input-icon-left>i {
     left: 0.85rem !important;
-    top: 50% !important;      
-    transform: translateY(-50%) !important; 
-    color: var(--color-text-light) !important; 
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    color: var(--color-text-light) !important;
 }
 
 .p-input-icon-left .p-inputtext {
-    padding-left: 2.5rem !important; 
+    padding-left: 2.5rem !important;
 }
 
 .p-badge {
-    padding: 0.1rem 0.2rem 0.2rem 0.2rem!important;
-    font-size: 0.8rem !important
+    padding: 0.1rem 0.2rem 0.2rem 0.2rem !important;
+    font-size: 0.8rem !important;
+}
+
+/* ═══════════════════════════════════════════
+   Responsive Overrides
+   ═══════════════════════════════════════════ */
+
+/* Split Screen / intermediate (~900px) */
+@media (max-width: 900px) {
+    .main-grid-layout {
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+    }
+
+    .dashboard-grid-3 {
+        grid-template-columns: 1fr 1fr !important;
+    }
+}
+
+/* Narrow viewport (~640px) */
+@media (max-width: 640px) {
+    .main-grid-layout {
+        grid-template-columns: 1fr !important;
+        gap: 0.75rem !important;
+    }
+
+    .dashboard-grid-3 {
+        grid-template-columns: 1fr !important;
+    }
+
+    .p-selectbutton .p-button {
+        font-size: 0.75rem !important;
+        padding: 0.35rem 0.5rem !important;
+    }
 }

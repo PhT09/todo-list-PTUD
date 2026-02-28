@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, ConfigDict
-from datetime import datetime
+from datetime import date
 from typing import Optional
 
 
@@ -12,7 +12,7 @@ class UserResponse(BaseModel):
     id: int
     email: str
     is_active: bool
-    created_at: datetime
+    created_at: date
 
     model_config = ConfigDict(from_attributes=True)
 

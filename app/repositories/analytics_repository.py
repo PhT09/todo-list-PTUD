@@ -4,7 +4,7 @@ Queries tasks within date ranges for charting and reporting.
 """
 
 from typing import List, Optional
-from datetime import datetime
+from datetime import date
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func, or_
 from fastapi import Depends
@@ -20,8 +20,8 @@ class AnalyticsRepository:
     def get_completed_tasks_in_range(
         self,
         owner_id: int,
-        start_date: datetime,
-        end_date: datetime,
+        start_date: date,
+        end_date: date,
     ) -> List[Todo]:
         """
         Get all completed tasks for an owner where completed_at
@@ -39,8 +39,8 @@ class AnalyticsRepository:
     def get_all_tasks_in_range(
         self,
         owner_id: int,
-        start_date: datetime,
-        end_date: datetime,
+        start_date: date,
+        end_date: date,
     ) -> List[Todo]:
         """
         Get ALL tasks (done or not) whose created_at OR completed_at
@@ -59,8 +59,8 @@ class AnalyticsRepository:
     def get_total_completed_count(
         self,
         owner_id: int,
-        start_date: datetime,
-        end_date: datetime,
+        start_date: date,
+        end_date: date,
     ) -> int:
         """Count of completed tasks in the date range."""
         return self.db.query(func.count(Todo.id)).filter(
@@ -75,8 +75,8 @@ class AnalyticsRepository:
     def get_average_score(
         self,
         owner_id: int,
-        start_date: datetime,
-        end_date: datetime,
+        start_date: date,
+        end_date: date,
     ) -> float:
         """Average productivity score for completed tasks in the range."""
         result = self.db.query(func.avg(Todo.productivity_score)).filter(
@@ -93,8 +93,8 @@ class AnalyticsRepository:
     def get_total_created_count(
         self,
         owner_id: int,
-        start_date: datetime,
-        end_date: datetime,
+        start_date: date,
+        end_date: date,
     ) -> int:
         """Count of tasks created in the date range."""
         return self.db.query(func.count(Todo.id)).filter(

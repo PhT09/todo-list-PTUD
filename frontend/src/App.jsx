@@ -38,7 +38,7 @@ function TodoApp() {
     const fetchTrashCount = () => {
         todoApi.getTrash()
             .then(res => setTrashCount(res.data.length))
-            .catch(err => console.error("Failed to fetch trash count", err));
+            .catch(() => { });
     }
 
     // Debounce Search
@@ -85,7 +85,6 @@ function TodoApp() {
             setTodos(res.data.items)
             setTotalItems(res.data.total)
         } catch (err) {
-            console.error("Failed to fetch todos:", err)
             if (err.response?.status === 401) {
                 logout();
             }
@@ -184,10 +183,10 @@ function TodoApp() {
 
     return (
         <>
-            <div className={`glass-bg rounded-2xl shadow-glass p-4 w-[95%] max-w-[1200px] mx-auto my-5 transition-all duration-300 ${showDashboard ? 'max-w-[1400px]' : ''}`}>
+            <div className={`glass-bg rounded-2xl shadow-glass p-4 w-[95%] max-w-[1200px] mx-auto my-1 transition-all duration-300 ${showDashboard ? 'max-w-[1400px]' : ''}`}>
 
                 {/* Header */}
-                <header className="relative text-center mb-4 pb-3 border-b border-[var(--color-glass-border)]">
+                <header className="relative text-center mb-2 pb-2 border-b border-[var(--color-glass-border)]">
                     <div>
                         <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent">
                             Todo App
@@ -202,7 +201,7 @@ function TodoApp() {
                         <Dashboard onBack={() => setShowDashboard(false)} />
                     </div>
                 ) : (
-                    <div className="grid grid-cols-[minmax(0,1fr)_700px] gap-4 items-start main-grid-layout max-md:grid-cols-1">
+                    <div className="grid grid-cols-[minmax(0,1fr)_700px] gap-4 items-start main-grid-layout">
                         {/* Left Column */}
                         <aside className="flex flex-col gap-2.5">
                             <div className="p-1">
@@ -248,7 +247,7 @@ function TodoApp() {
                         </aside>
 
                         {/* Right Column */}
-                        <main className="flex flex-col gap-2 min-h-[500px] card-bg py-3 px-6 rounded-2xl border border-[var(--color-glass-border)]">
+                        <main className="flex flex-col gap-2 h-[600px] py-3 px-6 max-sm:px-3 card-bg rounded-2xl ">
                             <div className="flex justify-between items-center pb-2 border-b border-[var(--color-glass-border)] mb-0.5">
                                 <h3 className="text-lg text-main font-semibold">Danh sách công việc</h3>
                                 <Badge value={`${totalItems} task`} severity="info" />

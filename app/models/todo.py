@@ -1,11 +1,11 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, Boolean, Date, ForeignKey, Float
 from sqlalchemy.orm import relationship
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from ..core.database import Base
 
 
-def utc_now():
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+def current_date():
+    return datetime.now().date()
 
 
 class Todo(Base):
@@ -16,20 +16,20 @@ class Todo(Base):
     description = Column(String, nullable=True)
     is_done = Column(Boolean, default=False)
 
-    created_at = Column(DateTime, default=utc_now)
-    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+    created_at = Column(Date, default=current_date)
+    updated_at = Column(Date, default=current_date, onupdate=current_date)
 
     # Level 5: Data Ownership
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     # Level 6: Deadline
-    due_date = Column(DateTime, nullable=True)
+    due_date = Column(Date, nullable=True)
 
     # Level 7: Soft Delete
-    deleted_at = Column(DateTime, nullable=True)
+    deleted_at = Column(Date, nullable=True)
 
     # Analytics: Completion tracking
-    completed_at = Column(DateTime, nullable=True)
+    completed_at = Column(Date, nullable=True)
     productivity_score = Column(Float, nullable=True)
 
     # Priority Tag (fixed enum: Priority, Important, Necessary, Normal)

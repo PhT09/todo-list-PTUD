@@ -3,7 +3,7 @@ Analytics Router - API endpoints for productivity analytics.
 """
 
 from fastapi import APIRouter, Depends, Query
-from datetime import datetime
+from datetime import date
 from sqlalchemy.orm import Session
 
 from ..core.database import get_db
@@ -17,8 +17,8 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 @router.get("/stats")
 def get_analytics_stats(
-    start_date: datetime = Query(..., description="Start of date range (ISO 8601)"),
-    end_date: datetime = Query(..., description="End of date range (ISO 8601)"),
+    start_date: date = Query(..., description="Start of date range (ISO 8601)"),
+    end_date: date = Query(..., description="End of date range (ISO 8601)"),
     unit: str = Query("week", pattern="^(week|month)$", description="Aggregation unit: week or month"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -37,11 +37,7 @@ def get_analytics_stats(
         - line_chart_data: Average productivity scores per time unit
         - cumulative_score: Overall average score (X/100)
     """
-    # Strip timezone for consistent comparison
-    if start_date.tzinfo is not None:
-        start_date = start_date.replace(tzinfo=None)
-    if end_date.tzinfo is not None:
-        end_date = end_date.replace(tzinfo=None)
+    # start_date and end_date are datetime.date, so they don't have timezone info
 
     repo = AnalyticsRepository(db)
     service = AnalyticsService(repo)

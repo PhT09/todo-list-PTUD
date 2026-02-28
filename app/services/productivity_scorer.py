@@ -28,7 +28,7 @@ Auto-Trash: If Actual_Duration >= 2 * Estimated_Duration => score = 0, move to t
 """
 
 import math
-from datetime import datetime
+from datetime import date
 
 # Priority -> sigmoid steepness parameter
 PRIORITY_A_MAP = {
@@ -39,8 +39,8 @@ PRIORITY_A_MAP = {
 }
 
 
-def _days_between(d1: datetime, d2: datetime) -> int:
-    """Return number of days between two datetimes (can be fractional)."""
+def _days_between(d1: date, d2: date) -> int:
+    """Return number of days between two dates (can be fractional)."""
     delta = d2 - d1
     return delta.days
 
@@ -59,9 +59,9 @@ def calculate_weight(priority: str, actual_days: float) -> float:
 
 
 def calculate_deadline_score(
-    created_at: datetime,
-    due_date: datetime,
-    completed_at: datetime,
+    created_at: date,
+    due_date: date,
+    completed_at: date,
 ) -> float:
     """
     Deadline Score out of 100.
@@ -90,9 +90,9 @@ def calculate_deadline_score(
 
 
 def compute_productivity(
-    created_at: datetime,
-    due_date: datetime | None,
-    completed_at: datetime,
+    created_at: date,
+    due_date: date | None,
+    completed_at: date,
     priority: str,
 ) -> dict:
     """

@@ -71,7 +71,7 @@ const TodoInput = ({ onAdd, isAdding }) => {
     const isAddDisabled = !isExpanded || title.trim().length < 3 || title.trim().length > 100 || isAdding;
 
     return (
-        <div ref={containerRef} className="card-bg p-3 rounded-xl border border-[var(--color-glass-border)]">
+        <div ref={containerRef} className="card-bg p-3 rounded-xl">
             <form onSubmit={handleSubmit}>
                 <div className="flex gap-2">
                     <InputText
@@ -104,7 +104,7 @@ const TodoInput = ({ onAdd, isAdding }) => {
                         />
 
                         {/* Priority Pills using PrimeReact Buttons */}
-                        <div className="flex gap-1.5 flex-wrap py-1 justify-between">
+                        <div className="flex gap-1.5 flex-wrap py-1 justify-around">
                             {PRIORITY_OPTIONS.map((opt) => (
                                 <Button
                                     key={opt.value}

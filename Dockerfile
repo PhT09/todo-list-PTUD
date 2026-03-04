@@ -1,4 +1,4 @@
-# Build stage
+# Build stage for Todo App V2
 FROM python:3.12-slim
 
 # Set environment variables

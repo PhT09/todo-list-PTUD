@@ -54,7 +54,7 @@ Follow these steps to run the application locally.
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone -b main https://github.com/PhT09/todo-list-PTUD.git todo-app
 cd todo-app
 
 # Create a virtual environment
@@ -77,6 +77,9 @@ python seed_data.py
 
 # Start the Server
 uvicorn app.main:app --reload
+
+# (Optional) Start the Server with Docker
+docker compose up --build
 ```
 *Backend runs at: `http://localhost:8000`*
 

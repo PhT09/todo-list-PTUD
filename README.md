@@ -74,7 +74,7 @@ Follow these steps to run the application locally.
 
 ```bash
 # Clone the repository
-git clone -b ver2 --single-branch https://github.com/PhT09/todo-list-PTUD.git todo-app-v2
+git clone -b ver2 https://github.com/PhT09/todo-list-PTUD.git todo-app-v2
 cd todo-app-v2
 
 # Create a virtual environment

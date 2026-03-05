@@ -1,8 +1,8 @@
-# Todo App (Trần Nguyễn Toàn Phát)
+# Todo App version 2 (Trần Nguyễn Toàn Phát)
 
 A modern, full-stack Todo application built with **FastAPI** (Backend) and **React** (Frontend). This project demonstrates a layered architecture, secure authentication, advanced task management features, and a polished user interface.
 
-![Tech Stack](https://img.shields.io/badge/Tech-FastAPI%20%7C%20React%20%7C%20PrimeReact%20%7C%20Tailwind%20%7C%20SQLite-blue)
+![Tech Stack](https://img.shields.io/badge/Tech-FastAPI%20%7C%20React%20%7C%20PrimeReact%20%7C%20Tailwind%20%7C%20PostgreSQL-blue)
 ![Status](https://img.shields.io/badge/Status-Complete-green)
 
 ---
@@ -74,8 +74,8 @@ Follow these steps to run the application locally.
 
 ```bash
 # Clone the repository
-git clone <repository-url>
-cd todo-app
+git clone -b ver2 --single-branch https://github.com/PhT09/todo-list-PTUD.git todo-app-v2
+cd todo-app-v2
 
 # Create a virtual environment
 python -m venv venv
@@ -89,6 +89,9 @@ source venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
+# Start the PostgreSQL Database (Docker required)
+docker compose up -d db
+
 # Initialize Database (Migrations)
 python -m alembic upgrade head
 
@@ -97,6 +100,9 @@ python seed_data.py
 
 # Start the Server
 uvicorn app.main:app --reload
+
+# (Optional) Stop Database when done
+docker compose down
 ```
 *Backend runs at: `http://localhost:8000`*
 

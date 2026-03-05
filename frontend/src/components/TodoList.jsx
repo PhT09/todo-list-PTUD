@@ -7,8 +7,8 @@ const TodoList = ({ todos, onToggle, onDelete, onUpdate }) => {
             <div className="flex flex-1 min-h-0 items-center justify-center overflow-y-auto pr-1.5 scrollbar-thin">
                 <Message
                     severity="info"
-                    text="Không có công việc nào"
-                    className="w-full justify-center"
+                    text="Chưa có công việc nào"
+                    className="w-1/3 justify-center"
                 />
             </div>
         );

@@ -72,24 +72,6 @@ class AnalyticsRepository:
             Todo.deleted_at == None,
         ).scalar() or 0
 
-    def get_average_score(
-        self,
-        owner_id: int,
-        start_date: date,
-        end_date: date,
-    ) -> float:
-        """Average productivity score for completed tasks in the range."""
-        result = self.db.query(func.avg(Todo.productivity_score)).filter(
-            Todo.owner_id == owner_id,
-            Todo.is_done == True,
-            Todo.completed_at != None,
-            Todo.productivity_score != None,
-            Todo.completed_at >= start_date,
-            Todo.completed_at <= end_date,
-            Todo.deleted_at == None,
-        ).scalar()
-        return round(result, 2) if result else 0.0
-
     def get_total_created_count(
         self,
         owner_id: int,

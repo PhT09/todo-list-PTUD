@@ -97,17 +97,15 @@ def compute_productivity(
 ) -> dict:
     """
     Compute the full productivity score for a completed task.
-
-    Returns:
-        {
-          "score": float,          # Total productivity score
-          "should_trash": bool,    # Whether the task should be auto-trashed
-          "weight": float,
-          "deadline_score": float,
-          "actual_duration": float,
-          "estimated_duration": float | None,
-        }
     """
+    from datetime import datetime
+    if isinstance(created_at, datetime):
+        created_at = created_at.date()
+    if isinstance(completed_at, datetime):
+        completed_at = completed_at.date()
+    if isinstance(due_date, datetime):
+        due_date = due_date.date()
+
     actual_duration = _days_between(created_at, completed_at)
 
     # If no due_date, we can only compute the weight portion

@@ -46,14 +46,14 @@ def test_create_todo_past_deadline(client: TestClient):
     headers = {"Authorization": f"Bearer {token}"}
 
     # Past Date
-    past_date = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    past_date = (datetime.now(timezone.utc).date() - timedelta(days=1)).isoformat()
     response = client.post(
         "/api/v1/todos",
         json={"title": "Past Due", "due_date": past_date},
         headers=headers
     )
     assert response.status_code == 400
-    assert "Deadline phải sau thời điểm hiện tại" in response.json()["detail"]
+    assert "Deadline không được nằm trong quá khứ" in response.json()["detail"]
 
 def test_get_todos_ownership(client: TestClient):
     # Setup - User A

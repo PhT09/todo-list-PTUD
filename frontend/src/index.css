@@ -329,7 +329,7 @@ body.dark-theme {
     font-size: 0.85rem !important;
     display: flex !important;
     justify-content: space-between !important;
-    padding: 0.5rem 0.85rem !important;
+    padding: 1rem 1rem !important;
     align-items: center !important;
 }
 

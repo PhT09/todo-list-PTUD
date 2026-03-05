@@ -41,9 +41,9 @@ class TodoRepository:
 
         # Sort
         if sort_desc:
-            query = query.order_by(desc(Todo.created_at))
+            query = query.order_by(desc(Todo.created_at), desc(Todo.id))
         else:
-            query = query.order_by(Todo.created_at)
+            query = query.order_by(Todo.created_at, Todo.id)
 
         total = query.count()
         items = query.offset(skip).limit(limit).all()
@@ -59,7 +59,7 @@ class TodoRepository:
             Todo.due_date != None,
             Todo.due_date < now,
             Todo.deleted_at == None
-        ).order_by(Todo.due_date).all()
+        ).order_by(desc(Todo.due_date), desc(Todo.id)).all()
 
     def get_today(self, owner_id: int) -> List[Todo]:
         """Tasks due today (any time within the calendar day)."""
@@ -68,7 +68,7 @@ class TodoRepository:
             Todo.owner_id == owner_id,
             func.date(Todo.due_date) == today,
             Todo.deleted_at == None
-        ).order_by(Todo.due_date).all()
+        ).order_by(desc(Todo.due_date), desc(Todo.id)).all()
 
     def get_by_id(self, todo_id: int, owner_id: int, include_deleted: bool = False) -> Optional[Todo]:
         query = self.db.query(Todo).filter(Todo.id == todo_id, Todo.owner_id == owner_id)
@@ -141,7 +141,7 @@ class TodoRepository:
         return self.db.query(Todo).filter(
             Todo.owner_id == owner_id,
             Todo.deleted_at != None
-        ).order_by(desc(Todo.deleted_at)).all()
+        ).order_by(desc(Todo.deleted_at), desc(Todo.id)).all()
 
     def delete_completed(self, owner_id: int) -> int:
         """Delete all completed todos for the owner. Returns count of deleted items."""

@@ -12,12 +12,15 @@ from .productivity_scorer import compute_productivity
 
 def _enrich_todo(todo) -> dict:
     """Convert a Todo ORM object to a dict with computed is_overdue field."""
+    # Handle cases where PostgreSQL might return datetime.datetime instead of datetime.date
+    due_date = todo.due_date.date() if isinstance(todo.due_date, datetime) else todo.due_date
+
     data = {
         "id": todo.id,
         "title": todo.title,
         "description": todo.description,
         "is_done": todo.is_done,
-        "due_date": todo.due_date,
+        "due_date": due_date,
         "created_at": todo.created_at,
         "updated_at": todo.updated_at,
         "owner_id": todo.owner_id,
@@ -27,8 +30,8 @@ def _enrich_todo(todo) -> dict:
         "productivity_score": todo.productivity_score,
         "is_overdue": (
             not todo.is_done
-            and todo.due_date is not None
-            and todo.due_date < datetime.now().date()
+            and due_date is not None
+            and due_date < datetime.now().date()
         ),
     }
     return data
@@ -88,7 +91,8 @@ class TodoService:
             existing = self.repo.get_by_id(todo_id, owner_id)
             if not existing:
                 raise HTTPException(status_code=404, detail="Task không tồn tại hoặc không thuộc về bạn")
-            if new_due < existing.created_at:
+            existing_created = existing.created_at.date() if isinstance(existing.created_at, datetime) else existing.created_at
+            if new_due < existing_created:
                 raise HTTPException(
                     status_code=400,
                     detail="Deadline không được trước ngày tạo công việc"

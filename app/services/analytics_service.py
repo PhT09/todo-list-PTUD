@@ -55,24 +55,16 @@ class AnalyticsService:
         Returns: kpi, workload_trend, priority_mix, punctuality,
                  score_trend, weekday_activity, lead_time, cumulative_backlog
         """
-        # Compute previous period (same duration, immediately before start_date)
-        duration = end_date - start_date
-        prev_start = start_date - duration
-        prev_end = start_date - timedelta(days=1)
 
         # ── Fetch data ──
         all_tasks = self.repo.get_all_tasks_in_range(owner_id, start_date, end_date)
         completed_tasks = self.repo.get_completed_tasks_in_range(owner_id, start_date, end_date)
 
-        prev_all_tasks = self.repo.get_all_tasks_in_range(owner_id, prev_start, prev_end)
-        prev_completed = self.repo.get_completed_tasks_in_range(owner_id, prev_start, prev_end)
-
         # Period keys for x-axes
         periods = _generate_period_keys(start_date, end_date, unit)
 
         # ── 1. KPI Cards ──
-        kpi = self._compute_kpi(all_tasks, completed_tasks, prev_all_tasks, prev_completed,
-                                start_date, end_date, prev_start, prev_end, owner_id)
+        kpi = self._compute_kpi(all_tasks, completed_tasks, start_date, end_date, owner_id)
 
         # ── 2. Workload Trend (new vs completed per period) ──
         workload_trend = self._compute_workload_trend(all_tasks, completed_tasks, periods, unit)
@@ -110,28 +102,17 @@ class AnalyticsService:
     # Private computation methods
     # ────────────────────────────────────────────
 
-    def _compute_kpi(self, all_tasks, completed_tasks, prev_all, prev_completed,
-                     start, end, prev_start, prev_end, owner_id):
+    def _compute_kpi(self, all_tasks, completed_tasks, start, end, owner_id):
         total = len(all_tasks)
         completed = len(completed_tasks)
-        avg_score = self.repo.get_average_score(owner_id, start, end)
-
-        prev_total = len(prev_all)
-        prev_comp = len(prev_completed)
-        prev_avg = self.repo.get_average_score(owner_id, prev_start, prev_end)
-
-        def growth(current, previous):
-            if previous == 0:
-                return 100.0 if current > 0 else 0.0
-            return round(((current - previous) / previous) * 100, 1)
+        
+        valid_scores = [t.productivity_score for t in completed_tasks if t.productivity_score is not None]
+        avg_score = round(sum(valid_scores) / len(valid_scores), 2) if valid_scores else 0.0
 
         return {
             "total_tasks": total,
-            "total_tasks_growth": growth(total, prev_total),
             "completed_tasks": completed,
-            "completed_tasks_growth": growth(completed, prev_comp),
             "avg_score": avg_score,
-            "avg_score_growth": growth(avg_score, prev_avg),
         }
 
     def _compute_workload_trend(self, all_tasks, completed_tasks, periods, unit):

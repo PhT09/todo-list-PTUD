@@ -8,6 +8,11 @@ import { todoApi } from '../api/todoApi';
 export default function TrashManager({ isOpen, onClose, onRestore, onDeleteForever }) {
     const [trashItems, setTrashItems] = useState([]);
     const [loading, setLoading] = useState(false);
+    const formatDate = (dateStr) => {
+        if (!dateStr) return null;
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    };
 
     useEffect(() => {
         if (isOpen) {
@@ -62,7 +67,7 @@ export default function TrashManager({ isOpen, onClose, onRestore, onDeleteForev
                             <div className="flex flex-col">
                                 <span className="font-medium text-main text-sm">{item.title}</span>
                                 <span className="text-xs text-light">
-                                    Đã xóa: {new Date(item.deleted_at).toLocaleString()}
+                                    Đã xóa: {formatDate(item.deleted_at)}
                                 </span>
                             </div>
                             <div className="flex gap-1">

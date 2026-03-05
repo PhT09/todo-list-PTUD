@@ -35,7 +35,7 @@ def upgrade() -> None:
     op.execute("""
         UPDATE todos
         SET completed_at = updated_at
-        WHERE is_done = 1 AND completed_at IS NULL
+        WHERE is_done = true AND completed_at IS NULL
     """)
 
 

@@ -1,4 +1,4 @@
-# Todo App version 2 (Trần Nguyễn Toàn Phát)
+# Todo App version 2 (Trần Nguyễn Toàn Phát - 23643121)
 
 A modern, full-stack Todo application built with **FastAPI** (Backend) and **React** (Frontend). This project demonstrates a layered architecture, secure authentication, advanced task management features, and a polished user interface.
 
